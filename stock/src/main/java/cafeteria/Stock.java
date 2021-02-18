@@ -2,6 +2,9 @@ package cafeteria;
 
 import javax.persistence.*;
 import org.springframework.beans.BeanUtils;
+
+
+
 import java.util.List;
 
 @Entity
@@ -13,17 +16,42 @@ public class Stock {
     private Long id;
     private String productName;
     private Integer pty;
+    
+    
+    @PostPersist
+    public void onPostPersist(){
+    	StockAdded stockAdded = new StockAdded();
+        BeanUtils.copyProperties(this, stockAdded);
+        stockAdded.publishAfterCommit();
+    }
+    
 
     @PostUpdate
-    public void onPostUpdate(){
+    public void onPostUpdate(){    	
+    	
+ /*   	switch(status) {
+    	case "Receipted" : 
+    		Receipted receipted = new Receipted();
+            BeanUtils.copyProperties(this, receipted);
+            receipted.publishAfterCommit();
+            break;
+    	case "Made" : 
+    		Made made = new Made();
+            BeanUtils.copyProperties(this, made);
+            made.publishAfterCommit();
+            break;
+    	case "DrinkCancled" : 
+    		DrinkCanceled drinkCanceled = new DrinkCanceled();
+            BeanUtils.copyProperties(this, drinkCanceled);
+            drinkCanceled.publishAfterCommit();
+            break;
+    	}
+    	
+    	
+  */  	
         StockDeducted stockDeducted = new StockDeducted();
         BeanUtils.copyProperties(this, stockDeducted);
         stockDeducted.publishAfterCommit();
-
-
-        StockAdded stockAdded = new StockAdded();
-        BeanUtils.copyProperties(this, stockAdded);
-        stockAdded.publishAfterCommit();
 
 
         UseCanceled useCanceled = new UseCanceled();

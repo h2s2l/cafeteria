@@ -7,7 +7,9 @@ public class PaymentCanceled extends AbstractEvent {
     private Long orderId;
     private String phoneNumber;
     private Integer amt;
-    private String status;
+    private String status; 
+	private Integer qty;
+    private String productName;
 
     public Long getId() {
         return id;
@@ -44,4 +46,21 @@ public class PaymentCanceled extends AbstractEvent {
     public void setStatus(String status) {
         this.status = status;
     }
+    
+    public Integer getQty() {
+ 		return qty;
+ 	}
+
+ 	public void setQty(Integer qty) {
+ 		this.qty = qty;
+ 	}
+
+ 	public String getProductName() {
+ 		return productName;
+ 	}
+
+ 	public void setProductName(String productName) {
+ 		this.productName = productName;
+ 	}
+
 }

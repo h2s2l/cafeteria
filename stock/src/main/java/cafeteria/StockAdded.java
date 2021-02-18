@@ -1,4 +1,4 @@
-package CAFETERIA;
+package cafeteria;
 
 public class StockAdded extends AbstractEvent {
 

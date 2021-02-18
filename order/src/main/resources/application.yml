@@ -41,6 +41,8 @@ feign:
   client:
     payment:
       url: http://localhost:8082
+    stock:
+      url: http://localhost:8085
 ---
 
 spring:
@@ -70,6 +72,8 @@ feign:
   client:
     payment:
       url: http://payment:8080
+    stock:
+      url: http://stock:8080
   hystrix:
     enabled: true
 

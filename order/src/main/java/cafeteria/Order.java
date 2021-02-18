@@ -35,15 +35,14 @@ public class Order {
         Ordered ordered = new Ordered();
         BeanUtils.copyProperties(this, ordered);
         ordered.publishAfterCommit();
-
+        
+        
         Payment payment = new Payment();
         payment.setOrderId(this.id);
         payment.setPhoneNumber(this.phoneNumber);
         payment.setAmt(this.amt);
         
         OrderApplication.applicationContext.getBean(PaymentService.class).pay(payment);
-
-
     }
 
     @PostUpdate

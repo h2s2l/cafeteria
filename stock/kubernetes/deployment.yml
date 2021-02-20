@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: stock
-          image: username/stock:latest
+          image: h2s2l/stock:v1
           ports:
             - containerPort: 8080
           readinessProbe:

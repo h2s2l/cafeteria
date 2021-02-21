@@ -8,14 +8,14 @@ import org.springframework.beans.BeanUtils;
 import java.util.List;
 
 @Entity
-@Table(name="Stock_table")
+@Table(name="Stock")
 public class Stock {
 
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
     private String productName;
-    private Integer pty;
+    private Integer qty;
     private String status;
     
     
@@ -62,12 +62,12 @@ public class Stock {
     public void setProductName(String productName) {
         this.productName = productName;
     }
-    public Integer getPty() {
-        return pty;
+    public Integer getQty() {
+        return qty;
     }
 
-    public void setPty(Integer pty) {
-        this.pty = pty;
+    public void setQty(Integer qty) {
+        this.qty = qty;
     }
 
     public String getStatus() {

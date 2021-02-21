@@ -21,22 +21,6 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
-        env:
-        - name: MARIADB_DATABASE
-          valueFrom:
-            configMapKeyRef:
-              name: mariadb
-              key: database
-        - name: MARIADB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mariadb
-              key: username
-        - name: MARIADB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mariadb
-              key: password
         readinessProbe:
           httpGet:
             path: '/actuator/health'

@@ -41,7 +41,7 @@ public class Order {
         
         Stock stock = new Stock();
         stock.setProductName(this.productName);
-        stock.setPty(this.qty);
+        stock.setQty(this.qty);
         
         OrderApplication.applicationContext.getBean(StockService.class).useStock(stock);
         

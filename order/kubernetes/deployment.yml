@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: order
-  namespace: stock
   labels:
     app: order
 spec:
@@ -17,7 +16,7 @@ spec:
     spec:
       containers:
       - name: order
-        image: h2s2l/order:v1
+        image: h2s2l/order:v6
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

@@ -52,6 +52,8 @@ public class Order {
         payment.setOrderId(this.id);
         payment.setPhoneNumber(this.phoneNumber);
         payment.setAmt(this.amt);
+        payment.setProductName(this.productName);
+        payment.setQty(this.qty);
         
         OrderApplication.applicationContext.getBean(PaymentService.class).pay(payment);
     }

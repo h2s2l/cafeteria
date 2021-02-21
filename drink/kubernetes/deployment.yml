@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: drink
+  namespace: stock
   labels:
     app: drink
 spec:
@@ -16,7 +17,7 @@ spec:
     spec:
       containers:
       - name: drink 
-        image: beatific/drink:v1
+        image: h2s2l/drink:v1
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

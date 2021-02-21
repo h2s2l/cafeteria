@@ -17,6 +17,8 @@ public class Payment {
     private Integer amt;
     private String status = "PaymentApproved";
     private Date createTime = new Date();
+	private String productName;
+    private Integer qty;
 
     @PostPersist
     public void onPostPersist(){
@@ -83,5 +85,20 @@ public class Payment {
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
     }
+    public String getProductName() {
+		return productName;
+	}
+
+	public void setProductName(String productName) {
+		this.productName = productName;
+	}
+
+	public Integer getQty() {
+		return qty;
+	}
+
+	public void setQty(Integer qty) {
+		this.qty = qty;
+	}
 
 }

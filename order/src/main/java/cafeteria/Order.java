@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import cafeteria.external.Payment;
 import cafeteria.external.PaymentService;
+import cafeteria.external.Stock;
+import cafeteria.external.StockService;
 
 @Entity
 @Table(name="ORDER_MANAGEMENT")
@@ -35,6 +37,15 @@ public class Order {
         Ordered ordered = new Ordered();
         BeanUtils.copyProperties(this, ordered);
         ordered.publishAfterCommit();
+        
+        
+        Stock stock = new Stock();
+        stock.setProductName(this.productName);
+        stock.setPty(this.qty);
+        
+        OrderApplication.applicationContext.getBean(StockService.class).useStock(stock);
+        
+        
         
         
         Payment payment = new Payment();

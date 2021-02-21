@@ -16,9 +16,11 @@ public class Stock {
     private Long id;
     private String productName;
     private Integer pty;
+    private String status;
     
     
-    @PostPersist
+
+	@PostPersist
     public void onPostPersist(){
     	StockAdded stockAdded = new StockAdded();
         BeanUtils.copyProperties(this, stockAdded);
@@ -29,36 +31,20 @@ public class Stock {
     @PostUpdate
     public void onPostUpdate(){    	
     	
- /*   	switch(status) {
-    	case "Receipted" : 
-    		Receipted receipted = new Receipted();
-            BeanUtils.copyProperties(this, receipted);
-            receipted.publishAfterCommit();
+   	switch(status) {
+    	case "StockDeducted" : 
+            StockDeducted stockDeducted = new StockDeducted();
+            BeanUtils.copyProperties(this, stockDeducted);
+            stockDeducted.publishAfterCommit();
             break;
-    	case "Made" : 
-    		Made made = new Made();
-            BeanUtils.copyProperties(this, made);
-            made.publishAfterCommit();
+    	case "PaymentCanceled" : 
+            UseCanceled useCanceled = new UseCanceled();
+            BeanUtils.copyProperties(this, useCanceled);
+            useCanceled.publishAfterCommit();
             break;
-    	case "DrinkCancled" : 
-    		DrinkCanceled drinkCanceled = new DrinkCanceled();
-            BeanUtils.copyProperties(this, drinkCanceled);
-            drinkCanceled.publishAfterCommit();
-            break;
-    	}
+
+    	}    	
     	
-    	
-  */  	
-        StockDeducted stockDeducted = new StockDeducted();
-        BeanUtils.copyProperties(this, stockDeducted);
-        stockDeducted.publishAfterCommit();
-
-
-        UseCanceled useCanceled = new UseCanceled();
-        BeanUtils.copyProperties(this, useCanceled);
-        useCanceled.publishAfterCommit();
-
-
     }
 
 
@@ -84,7 +70,13 @@ public class Stock {
         this.pty = pty;
     }
 
+    public String getStatus() {
+		return status;
+	}
 
+	public void setStatus(String status) {
+		this.status = status;
+	}
 
 
 }

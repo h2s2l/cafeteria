@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: payment
+  namespace: stock
   labels:
     app: payment
 spec:
@@ -16,7 +17,7 @@ spec:
     spec:
       containers:
       - name: payment
-        image: beatific/payment:v2
+        image: h2s2l/payment:v1
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

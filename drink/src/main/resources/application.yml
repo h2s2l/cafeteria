@@ -41,14 +41,6 @@ server:
 
 spring:
   profiles: docker
-  datasource:
-    url: jdbc:mariadb://my-mariadb-mariadb-galera.mariadb.svc.cluster.local:3306/${MARIADB_DATABASE}
-    driver-class-name: org.mariadb.jdbc.Driver
-    username: ${MARIADB_USERNAME}
-    password: ${MARIADB_PASSWORD} 
-  jpa:
-    generate-ddl: true
-    show-sql: true
   cloud:
     stream:
       kafka:

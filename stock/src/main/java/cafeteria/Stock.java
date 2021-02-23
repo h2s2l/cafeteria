@@ -22,9 +22,9 @@ public class Stock {
 
 	@PostPersist
     public void onPostPersist(){
-    	StockAdded stockAdded = new StockAdded();
-        BeanUtils.copyProperties(this, stockAdded);
-        stockAdded.publishAfterCommit();
+    	StockCreated stockCreated = new StockCreated();
+        BeanUtils.copyProperties(this, stockCreated);
+        stockCreated.publishAfterCommit();
     }
     
 
@@ -32,10 +32,15 @@ public class Stock {
     public void onPostUpdate(){    	
     	
    	switch(status) {
-    	case "StockDeducted" : 
-            StockDeducted stockDeducted = new StockDeducted();
-            BeanUtils.copyProperties(this, stockDeducted);
-            stockDeducted.publishAfterCommit();
+   		case "StockDeducted" : 
+	        StockDeducted stockDeducted = new StockDeducted();
+	        BeanUtils.copyProperties(this, stockDeducted);
+	        stockDeducted.publishAfterCommit();
+	        break;
+    	case "Added" : 
+    		StockAdded stockAdded = new StockAdded();
+            BeanUtils.copyProperties(this, stockAdded);
+            stockAdded.publishAfterCommit();
             break;
     	case "PaymentCanceled" : 
             UseCanceled useCanceled = new UseCanceled();

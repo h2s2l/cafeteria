@@ -32,6 +32,7 @@ public class PolicyHandler{
             List<Stock> stocks = stockRepository.findByProductName(paymentCanceled.getProductName());
             for(Stock stock : stocks) {
             	stock.setQty(stock.getQty() + paymentCanceled.getQty());
+            	stock.setStatus("UsedCancled");
             	stockRepository.save(stock);
             }
         }

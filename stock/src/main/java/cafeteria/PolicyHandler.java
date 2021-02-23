@@ -29,7 +29,7 @@ public class PolicyHandler{
         if(paymentCanceled.isMe()){
             System.out.println("##### listener  : " + paymentCanceled.toJson());
             
-            List<Stock> stocks = stockRepository.findByproductName(paymentCanceled.getProductName());
+            List<Stock> stocks = stockRepository.findByProductName(paymentCanceled.getProductName());
             for(Stock stock : stocks) {
             	stock.setQty(stock.getQty() + paymentCanceled.getQty());
             	stockRepository.save(stock);

@@ -25,7 +25,7 @@ import java.util.List;
 		stock_temp.setQty(stock_temp.getQty() - s);
 	
 		if(stock_temp.getQty() < 0) {
-			System.out.println(stock_temp.getProductName()+"Stock is not enough.");
+			System.out.println(stock_temp.getProductName()+ "Stock is not enough.");
 			throw new RuntimeException("Stock is not enough.");
 		}
 		stock_temp.setStatus(stock.getStatus());
@@ -41,7 +41,7 @@ import java.util.List;
 		stock_temp.setQty(stock_temp.getQty() + s);
 		stock_temp.setStatus("StockAdded");
 		
-		System.out.println(stock_temp.getProductName()+"Stock is added.");		
+		System.out.println(stock_temp.getProductName()+" Stock is added.");		
 		stockRepository.save(stock_temp);
 		return stock;
     }

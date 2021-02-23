@@ -37,7 +37,7 @@ public class Stock {
 	        BeanUtils.copyProperties(this, stockDeducted);
 	        stockDeducted.publishAfterCommit();
 	        break;
-    	case "Added" : 
+    	case "StockAdded" : 
     		StockAdded stockAdded = new StockAdded();
             BeanUtils.copyProperties(this, stockAdded);
             stockAdded.publishAfterCommit();

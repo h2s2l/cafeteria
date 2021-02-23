@@ -3,7 +3,8 @@ package cafeteria;
 public class StockCreated extends AbstractEvent {
 
     private Long id;
-    private String productName;
+    private String status;
+	private String productName;
     private Integer qty;
 
     public StockCreated(){
@@ -17,6 +18,14 @@ public class StockCreated extends AbstractEvent {
     public void setId(Long id) {
         this.id = id;
     }
+    public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
     public String getProductName() {
         return productName;
     }

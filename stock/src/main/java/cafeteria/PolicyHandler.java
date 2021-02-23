@@ -35,7 +35,7 @@ public class PolicyHandler{
             List<Stock> stocks = stockRepository.findByProductName(paymentCanceled.getProductName());
             for(Stock stock : stocks) {
             	stock.setQty(stock.getQty() + paymentCanceled.getQty());
-            	stock.setStatus("UsedCancled");
+            	stock.setStatus("UseCancled");
             	stockRepository.save(stock);
             }
         }
@@ -67,8 +67,8 @@ public class PolicyHandler{
             
             List<OwnerPage> ownerPages = ownerPageRepository.findByProductName(stockDeducted.getProductName());
             for(OwnerPage ownerPage : ownerPages) {
-            	ownerPage.setUsedQty(ownerPage.getUsedQty() + stockDeducted.getQty());
-            	ownerPage.setRemainingQty(ownerPage.getRemainingQty() - stockDeducted.getQty());
+            	ownerPage.setUsedQty(ownerPage.getUsedQty() + (ownerPage.getRemainingQty() - stockDeducted.getQty()));
+            	ownerPage.setRemainingQty(stockDeducted.getQty());
 
             	ownerPageRepository.save(ownerPage);    
             }
@@ -84,8 +84,8 @@ public class PolicyHandler{
             
             List<OwnerPage> ownerPages = ownerPageRepository.findByProductName(useCanceled.getProductName());
             for(OwnerPage ownerPage : ownerPages) {
-            	ownerPage.setUsedQty(ownerPage.getUsedQty() - useCanceled.getQty());
-            	ownerPage.setRemainingQty(ownerPage.getRemainingQty() + useCanceled.getQty());
+            	ownerPage.setUsedQty(ownerPage.getUsedQty() - (useCanceled.getQty() - ownerPage.getRemainingQty()));
+            	ownerPage.setRemainingQty(useCanceled.getQty());
 
             	ownerPageRepository.save(ownerPage);    
             }
@@ -100,7 +100,7 @@ public class PolicyHandler{
             
             List<OwnerPage> ownerPages = ownerPageRepository.findByProductName(stockAdded.getProductName());
             for(OwnerPage ownerPage : ownerPages) {
-            	ownerPage.setRemainingQty(ownerPage.getRemainingQty() + stockAdded.getQty());
+            	ownerPage.setRemainingQty(stockAdded.getQty());
 
             	ownerPageRepository.save(ownerPage);    
             }

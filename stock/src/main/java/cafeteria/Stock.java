@@ -42,7 +42,7 @@ public class Stock {
             BeanUtils.copyProperties(this, stockAdded);
             stockAdded.publishAfterCommit();
             break;
-    	case "PaymentCanceled" : 
+    	case "UseCancled" : 
             UseCanceled useCanceled = new UseCanceled();
             BeanUtils.copyProperties(this, useCanceled);
             useCanceled.publishAfterCommit();

@@ -24,10 +24,10 @@ spring:
       bindings:
         event-in:
           group: order
-          destination: cafeteria
+          destination: cafeteria_stock
           contentType: application/json
         event-out:
-          destination: cafeteria
+          destination: cafeteria_stock
           contentType: application/json
 
 logging:
@@ -63,10 +63,10 @@ spring:
       bindings:
         event-in:
           group: order
-          destination: cafeteria
+          destination: cafeteria_stock
           contentType: application/json
         event-out:
-          destination: cafeteria
+          destination: cafeteria_stock
           contentType: application/json
 feign:
   client:

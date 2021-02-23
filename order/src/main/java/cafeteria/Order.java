@@ -41,7 +41,12 @@ public class Order {
         
         Stock stock = new Stock();
         stock.setProductName(this.productName);
-        stock.setQty(this.qty);
+        
+        stock = OrderApplication.applicationContext.getBean(StockService.class).serchStock(stock);
+        
+        System.out.println("serch Stock : id : " + stock.getId() + ", productName : " + stock.getProductName() + ", qty : " + stock.getQty() + ", status : " + stock.getStatus());
+        
+        stock.setQty(stock.getQty() - this.qty);
         
         OrderApplication.applicationContext.getBean(StockService.class).useStock(stock);
         

@@ -4,15 +4,15 @@ import javax.persistence.*;
 import java.util.List;
 
 @Entity
-@Table(name="OnwerPage_table")
-public class OnwerPage {
+@Table(name="OwnerPage_table")
+public class OwnerPage {
 
         @Id
         @GeneratedValue(strategy=GenerationType.AUTO)
         private Long id;
         private String productName;
-        private Integer qty;
-        private Integer usedPty;
+        private Integer remainingQty;
+        private Integer usedQty;
 
 
         public Long getId() {
@@ -29,19 +29,19 @@ public class OnwerPage {
         public void setProductName(String productName) {
             this.productName = productName;
         }
-        public Integer getQty() {
-            return qty;
+        public Integer getRemainingQty() {
+            return remainingQty;
         }
 
-        public void setQty(Integer qty) {
-            this.qty = qty;
+        public void setRemainingQty(Integer remainingQty) {
+            this.remainingQty = remainingQty;
         }
-        public Integer getUsedPty() {
-            return usedPty;
+        public Integer getUsedQty() {
+            return usedQty;
         }
 
-        public void setUsedPty(Integer usedPty) {
-            this.usedPty = usedPty;
+        public void setUsedQty(Integer usedQty) {
+            this.usedQty = usedQty;
         }
 
 }

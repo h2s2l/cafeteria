@@ -3,9 +3,8 @@ package cafeteria;
 public class StockDeducted extends AbstractEvent {
 
     private Long id;
-    private Long orderId;
-    private String phoneNumber;
-    private Integer amt;
+	private String productName;
+    private Integer qty;
     private String status;
 
     public StockDeducted(){
@@ -19,27 +18,7 @@ public class StockDeducted extends AbstractEvent {
     public void setId(Long id) {
         this.id = id;
     }
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-    public Integer getAmt() {
-        return amt;
-    }
-
-    public void setAmt(Integer amt) {
-        this.amt = amt;
-    }
+ 
     public String getStatus() {
         return status;
     }
@@ -47,4 +26,21 @@ public class StockDeducted extends AbstractEvent {
     public void setStatus(String status) {
         this.status = status;
     }
+    public String getProductName() {
+		return productName;
+	}
+
+	public void setProductName(String productName) {
+		this.productName = productName;
+	}
+
+	public Integer getQty() {
+		return qty;
+	}
+
+	public void setQty(Integer qty) {
+		this.qty = qty;
+	}
+
+
 }

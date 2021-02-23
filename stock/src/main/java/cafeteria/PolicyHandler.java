@@ -17,6 +17,9 @@ public class PolicyHandler{
 	
 	@Autowired
 	private StockRepository stockRepository;
+	
+	@Autowired
+	private OwnerPageRepository ownerPageRepository;
 
     @StreamListener(KafkaProcessor.INPUT)
     public void onStringEventListener(@Payload String eventString){
@@ -38,4 +41,70 @@ public class PolicyHandler{
         }
     }
 
+    
+    @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverStockCreated_(@Payload StockCreated stockCreated){
+
+        if(stockCreated.isMe()){
+            System.out.println("##### listener  : " + stockCreated.toJson());
+            
+			OwnerPage ownerPage = new OwnerPage();
+			ownerPage.setId(stockCreated.getId());
+			ownerPage.setProductName(stockCreated.getProductName());
+			ownerPage.setRemainingQty(stockCreated.getQty());
+			ownerPage.setUsedQty(0);
+			ownerPageRepository.save(ownerPage);            
+ 
+        }
+    }
+    
+    
+    @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverStockDeducted_(@Payload StockDeducted stockDeducted){
+
+        if(stockDeducted.isMe()){
+            System.out.println("##### listener  : " + stockDeducted.toJson());
+            
+            List<OwnerPage> ownerPages = ownerPageRepository.findByProductName(stockDeducted.getProductName());
+            for(OwnerPage ownerPage : ownerPages) {
+            	ownerPage.setUsedQty(ownerPage.getUsedQty() + stockDeducted.getQty());
+            	ownerPage.setRemainingQty(ownerPage.getRemainingQty() - stockDeducted.getQty());
+
+            	ownerPageRepository.save(ownerPage);    
+            }
+        }
+    }
+    
+    
+    @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverUseCanceled_(@Payload UseCanceled useCanceled){
+
+        if(useCanceled.isMe()){
+            System.out.println("##### listener  : " + useCanceled.toJson());
+            
+            List<OwnerPage> ownerPages = ownerPageRepository.findByProductName(useCanceled.getProductName());
+            for(OwnerPage ownerPage : ownerPages) {
+            	ownerPage.setUsedQty(ownerPage.getUsedQty() - useCanceled.getQty());
+            	ownerPage.setRemainingQty(ownerPage.getRemainingQty() + useCanceled.getQty());
+
+            	ownerPageRepository.save(ownerPage);    
+            }
+        }
+    }
+    
+    @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverStockAdded_(@Payload StockAdded stockAdded){
+
+        if(stockAdded.isMe()){
+            System.out.println("##### listener  : " + stockAdded.toJson());
+            
+            List<OwnerPage> ownerPages = ownerPageRepository.findByProductName(stockAdded.getProductName());
+            for(OwnerPage ownerPage : ownerPages) {
+            	ownerPage.setRemainingQty(ownerPage.getRemainingQty() + stockAdded.getQty());
+
+            	ownerPageRepository.save(ownerPage);    
+            }
+        }
+    }
+    
 }

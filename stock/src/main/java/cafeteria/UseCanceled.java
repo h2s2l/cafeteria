@@ -3,13 +3,9 @@ package cafeteria;
 public class UseCanceled extends AbstractEvent {
 
     private Long id;
-    private Long orderId;
+	private String productName;
+    private Integer qty;
     private String status;
-    private String phoneNumber;
-
-    public UseCanceled(){
-        super();
-    }
 
     public Long getId() {
         return id;
@@ -18,13 +14,7 @@ public class UseCanceled extends AbstractEvent {
     public void setId(Long id) {
         this.id = id;
     }
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
+ 
     public String getStatus() {
         return status;
     }
@@ -32,11 +22,20 @@ public class UseCanceled extends AbstractEvent {
     public void setStatus(String status) {
         this.status = status;
     }
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
+    public String getProductName() {
+		return productName;
+	}
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
+	public void setProductName(String productName) {
+		this.productName = productName;
+	}
+
+	public Integer getQty() {
+		return qty;
+	}
+
+	public void setQty(Integer qty) {
+		this.qty = qty;
+	}
+
 }

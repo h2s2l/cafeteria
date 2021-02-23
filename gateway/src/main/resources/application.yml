@@ -27,7 +27,7 @@ spring:
         - id: stock
           uri: http://localhost:8085
           predicates:
-            - Path=/stocks/** /onwerPages/**
+            - Path=/stocks/**
       globalcors:
         corsConfigurations:
           '[/**]':
@@ -66,6 +66,10 @@ spring:
           uri: http://customercenter:8080
           predicates:
             - Path= /mypages/**
+        - id: stock
+          uri: http://stock:8080
+          predicates:
+            - Path=/stocks/**
       globalcors:
         corsConfigurations:
           '[/**]':

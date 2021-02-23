@@ -20,14 +20,14 @@ import java.util.List;
 	private StockRepository stockRepository;
 	
 	@PatchMapping("/useStock")
-	public Stock usedStock(@RequestBody Ordered ordered) {
-		List<Stock> stocks = stockRepository.findByProductName(ordered.getProductName());
-		int s = ordered.getQty();
-		Stock stock = stocks.get(0);
-		stock.setQty(stock.getQty() - s);
+	public Stock usedStock(@RequestBody Stock stock) {
+		List<Stock> stocks = stockRepository.findByProductName(stock.getProductName());
+		int s = stock.getQty();
+		Stock stock_temp = stocks.get(0);
+		stock_temp.setQty(stock_temp.getQty() - s);
 		
-		if(stock.getQty() < 0) throw new RuntimeException("Stock is not enough.");
-		stockRepository.save(stock);
+		if(stock_temp.getQty() < 0) throw new RuntimeException("Stock is not enough.");
+		stockRepository.save(stock_temp);
 		return stock;
     }
  }

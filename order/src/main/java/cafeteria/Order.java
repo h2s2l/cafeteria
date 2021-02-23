@@ -42,7 +42,7 @@ public class Order {
         Stock stock = new Stock();
         stock.setProductName(this.productName);
         
-        stock = OrderApplication.applicationContext.getBean(StockService.class).serchStock(stock);
+        stock = OrderApplication.applicationContext.getBean(StockService.class).searchStock(stock);
         
         System.out.println("serch Stock : id : " + stock.getId() + ", productName : " + stock.getProductName() + ", qty : " + stock.getQty() + ", status : " + stock.getStatus());
         

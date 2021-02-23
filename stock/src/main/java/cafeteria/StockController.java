@@ -1,6 +1,7 @@
 package cafeteria;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,9 +23,24 @@ import java.util.List;
 		int s = stock.getQty();
 		Stock stock_temp = stocks.get(0);
 		stock_temp.setQty(stock_temp.getQty() - s);
-		
-		if(stock_temp.getQty() < 0) throw new RuntimeException("Stock is not enough.");
+	
+		if(stock_temp.getQty() < 0) {
+			System.out.println(stock_temp.getProductName()+"Stock is not enough.");
+			throw new RuntimeException("Stock is not enough.");
+		}
 		stockRepository.save(stock_temp);
 		return stock;
     }
+	
+	@PatchMapping("/addStock")
+	public Stock addStock(@RequestBody Stock stock) {
+		List<Stock> stocks = stockRepository.findByProductName(stock.getProductName());
+		int s = stock.getQty();
+		Stock stock_temp = stocks.get(0);
+		stock_temp.setQty(stock_temp.getQty() + s);
+		System.out.println(stock_temp.getProductName()+"Stock is added.");
+		stockRepository.save(stock_temp);
+		return stock;
+    }
+	
  }

@@ -12,7 +12,7 @@ import java.util.Date;
 @FeignClient(name="stock", url="${feign.client.stock.url}")
 public interface StockService {
 	
-    @RequestMapping(method= RequestMethod.PATCH, path="/stocks/useStock")
+    @RequestMapping(method= RequestMethod.PUT, path="/stocks/useStock")
     public void useStock(@RequestBody Stock stock);
 
 }

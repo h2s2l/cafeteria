@@ -1,16 +1,13 @@
 package cafeteria;
 
-public class PaymentCanceled extends AbstractEvent {
+public class DrinkCanceled extends AbstractEvent {
 
     private Long id;
     private Long orderId;
     private String phoneNumber;
-    private Integer amt;
-    private String status; 
-	private Integer qty;
-    private String productName;
+    private String status;
 
-    public PaymentCanceled(){
+    public DrinkCanceled(){
         super();
     }
 
@@ -34,13 +31,6 @@ public class PaymentCanceled extends AbstractEvent {
     public void setPhoneNumber(String phoneNumber) {
     	this.phoneNumber = phoneNumber;
     }
-    public Integer getAmt() {
-        return amt;
-    }
-
-    public void setAmt(Integer amt) {
-        this.amt = amt;
-    }
     public String getStatus() {
         return status;
     }
@@ -48,21 +38,4 @@ public class PaymentCanceled extends AbstractEvent {
     public void setStatus(String status) {
         this.status = status;
     }
-    
-	public Integer getQty() {
-		return qty;
-	}
-
-	public void setQty(Integer qty) {
-		this.qty = qty;
-	}
-
-	public String getProductName() {
-		return productName;
-	}
-
-	public void setProductName(String productName) {
-		this.productName = productName;
-	}
-
 }

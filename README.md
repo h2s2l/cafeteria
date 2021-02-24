@@ -82,6 +82,9 @@ mvn spring-boot:run
 
 cd customercneter
 mvn spring-boot:run
+
+cd stock
+mvn spring-boot:run
 ```
 
 ## DDD 의 적용
@@ -174,103 +177,373 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 ```
 - 적용 후 REST API 의 테스트
 ```
-# order 서비스의 주문처리
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345678" productName="coffee" qty=3 amt=5000
+#시나리오1
+재고 생성/추가 후 주문처리 및 완료
+
+# stock - coffee1 음료 재고 생성
+
+root@siege:/# http stock:8080/stocks productName="coffee1" qty=100
 HTTP/1.1 201 
 Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:20:20 GMT
-Location: http://order:8080/orders/1
+Date: Tue, 23 Feb 2021 12:22:01 GMT
+Location: http://stock:8080/stocks/1
 Transfer-Encoding: chunked
 {
     "_links": {
-        "order": {
-            "href": "http://order:8080/orders/1"
-        },
         "self": {
-            "href": "http://order:8080/orders/1"
+            "href": "http://stock:8080/stocks/1"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/1"
         }
     },
-    "amt": 5000,
-    "createTime": "2021-02-20T14:20:17.783+0000",
-    "phoneNumber": "01012345678",
-    "productName": "coffee",
+    "productName": "coffee1",
+    "qty": 100,
+    "status": "Created"
+}
+
+# stock - 음료 재고 추가
+
+root@siege:/# http PATCH stock:8080/stocks/addStock productName="coffee1" qty=30
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 12:24:19 GMT
+Transfer-Encoding: chunked
+
+{
+    "id": null,
+    "productName": "coffee1",
+    "qty": 30,
+    "status": "Created"
+}
+
+# stock - 음료 재고 추가 확인
+
+root@siege:/# http http://stock:8080/stocks/1
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Tue, 23 Feb 2021 12:25:22 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/1"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/1"
+        }
+    },
+    "productName": "coffee1",
+    "qty": 130,
+    "status": "StockAdded"
+}
+
+
+# order - 음료 주문
+
+root@siege:/# http order:8080/orders phoneNumber="01012341234" productName="coffee1" qty=1 amt=2000
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 12:26:23 GMT
+Location: http://order:8080/orders/2
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/2"
+        },
+        "self": {
+            "href": "http://order:8080/orders/2"
+        }
+    },
+    "amt": 2000,
+    "createTime": "2021-02-23T12:26:23.350+0000",
+    "phoneNumber": "01012341234",
+    "productName": "coffee1",
+    "qty": 1,
+    "status": "Ordered"
+}
+
+
+# stock - 재고 사용 확인
+
+root@siege:/# http http://stock:8080/stocks/1
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Tue, 23 Feb 2021 12:26:51 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/1"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/1"
+        }
+    },
+    "productName": "coffee1",
+    "qty": 128,
+    "status": "StockDeducted"
+}
+
+
+# drink - 바리스타의 음료 접수
+
+root@siege:/# http PATCH http://drink:8080/drinks/2 status="Receipted"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 12:28:14 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "drink": {
+            "href": "http://drink:8080/drinks/2"
+        },
+        "self": {
+            "href": "http://drink:8080/drinks/2"
+        }
+    },
+    "createTime": "2021-02-23T12:26:23.563+0000",
+    "orderId": 2,
+    "phoneNumber": "01012341234",
+    "productName": "coffee1",
+    "qty": 1,
+    "status": "Receipted"
+}
+
+
+
+# drink - 바리스타의 음료 제조
+
+root@siege:/# http PATCH http://drink:8080/drinks/2 status="Made"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 12:28:47 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "drink": {
+            "href": "http://drink:8080/drinks/2"
+        },
+        "self": {
+            "href": "http://drink:8080/drinks/2"
+        }
+    },
+    "createTime": "2021-02-23T12:26:23.563+0000",
+    "orderId": 2,
+    "phoneNumber": "01012341234",
+    "productName": "coffee1",
+    "qty": 1,
+    "status": "Made"
+}
+
+
+
+
+#시나리오2
+음료 주문 후 주문 취소 시 재고 원복 확인
+
+
+# stock - coffee2 음료 재고 생성
+root@siege:/# http stock:8080/stocks productName="coffee2" qty=50
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:27:22 GMT
+Location: http://stock:8080/stocks/2
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/2"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/2"
+        }
+    },
+    "productName": "coffee2",
+    "qty": 50,
+    "status": "Created"
+}
+
+# order - 음료 주문
+root@siege:/# http order:8080/orders phoneNumber="01011112222" productName="coffee2" qty=3 amt=9000
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:28:26 GMT
+Location: http://order:8080/orders/3
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/3"
+        },
+        "self": {
+            "href": "http://order:8080/orders/3"
+        }
+    },
+    "amt": 9000,
+    "createTime": "2021-02-23T13:28:26.078+0000",
+    "phoneNumber": "01011112222",
+    "productName": "coffee2",
     "qty": 3,
     "status": "Ordered"
 }
 
-# payment 조회
-root@siege-5b99b44c9c-8qtpd:/# http http://payment:8080/payments/search/findByOrderId?orderId=1 
+# payment - 결제확인
+root@siege:/# http http://payment:8080/payments/search/findByOrderId?orderId=3
 HTTP/1.1 200 
 Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:21:21 GMT
+Date: Tue, 23 Feb 2021 13:29:09 GMT
 Transfer-Encoding: chunked
+
 {
     "_embedded": {
         "payments": [
             {
                 "_links": {
                     "payment": {
-                        "href": "http://payment:8080/payments/1"
+                        "href": "http://payment:8080/payments/3"
                     },
                     "self": {
-                        "href": "http://payment:8080/payments/1"
+                        "href": "http://payment:8080/payments/3"
                     }
                 },
-                "amt": 5000,
-                "createTime": "2021-02-20T14:20:19.020+0000",
-                "orderId": 1,
-                "phoneNumber": "01012345678",
+                "amt": 9000,
+                "createTime": "2021-02-23T13:28:26.153+0000",
+                "orderId": 3,
+                "phoneNumber": "01011112222",
+                "productName": "coffee2",
+                "qty": 3,
                 "status": "PaymentApproved"
             }
         ]
     },
     "_links": {
         "self": {
-            "href": "http://payment:8080/payments/search/findByOrderId?orderId=1"
+            "href": "http://payment:8080/payments/search/findByOrderId?orderId=3"
         }
     }
 }
 
-# drink 서비스의 접수처리
-root@siege-5b99b44c9c-8qtpd:/# http patch http://drink:8080/drinks/1 status="Receipted"
+
+
+# stock - 음료 재고 소진 확인
+root@siege:/# http http://stock:8080/stocks/2
 HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:32:03 GMT
+Content-Type: application/hal+json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:29:32 GMT
 Transfer-Encoding: chunked
+
 {
     "_links": {
-        "drink": {
-            "href": "http://drink:8080/drinks/1"
-        },
         "self": {
-            "href": "http://drink:8080/drinks/1"
+            "href": "http://stock:8080/stocks/2"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/2"
         }
     },
-    "createTime": "2021-02-20T14:29:13.533+0000",
-    "orderId": 1,
-    "phoneNumber": "01012345678",
-    "productName": "coffee",
-    "qty": 3,
-    "status": "Receipted"
+    "productName": "coffee2",
+    "qty": 47,
+    "status": "StockDeducted"
 }
 
-# customercenter 서비스의 상태확인
-root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345678"
+
+
+# order - 음료 주문취소
+root@siege:/# http patch http://order:8080/orders/3 status="OrderCanceled"
 HTTP/1.1 200 
 Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:36:15 GMT
+Date: Tue, 23 Feb 2021 13:29:59 GMT
 Transfer-Encoding: chunked
-[
-    {
-        "amt": 5000,
-        "id": 1,
-        "orderId": 1,
-        "phoneNumber": "01012345678",
-        "productName": "coffee",
-        "qty": 3,
-        "status": "Ordered"
-    }
-]
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/3"
+        },
+        "self": {
+            "href": "http://order:8080/orders/3"
+        }
+    },
+    "amt": 9000,
+    "createTime": "2021-02-23T13:28:26.078+0000",
+    "phoneNumber": "01011112222",
+    "productName": "coffee2",
+    "qty": 3,
+    "status": "OrderCanceled"
+}
+
+
+# stock - 재고 복구
+root@siege:/# http http://stock:8080/stocks/2
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:30:21 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/2"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/2"
+        }
+    },
+    "productName": "coffee2",
+    "qty": 50,
+    "status": "UsedCancled"
+}
+
+
+# OwnerPage 시나리오
+OwnerPage에서 Owner는 재고상태와 소진된양을 확인 할 수 있다
+
+# 음료 생성
+root@siege:/# http stock:8080/stocks productName="coffee1" qty=100
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 16:31:51 GMT
+Location: http://stock:8080/stocks/1
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/1"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/1"
+        }
+    },
+    "productName": "coffee1",
+    "qty": 100,
+    "status": "Created"
+}
+
+
+# 오너페이지 재고 확인
+root@siege:/# http http://stock:8080/ownerpages/2
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 16:32:04 GMT
+Transfer-Encoding: chunked
+
+{
+    "id": 2,
+    "productName": "coffee1",
+    "remainingQty": 100,
+    "usedQty": 0
+}
+
 ```
 
 ## API Gateway
@@ -301,6 +574,12 @@ spring:
           uri: http://customercenter:8080
           predicates:
             - Path= /mypages/**
+        - id: stock
+          uri: http://stock:8080
+          predicates:
+            - Path=/stocks/**
+
+
 
 # service.yaml
 apiVersion: v1
@@ -336,6 +615,18 @@ payment          ClusterIP      10.100.242.153   <none>                         
 ![image](https://user-images.githubusercontent.com/76020485/108672131-e4a19800-7524-11eb-894e-832ed6519b53.PNG)
 
 ## 폴리글랏 퍼시스턴스
+
+재고(stock)관리 서비스는 Spring에서 제공하는 Embedded Datadase인 HSQL을 사용하였다.
+HSQL 적용을 위하여 stock의 pom.xml에 아래의 dependency설정하였다.
+```
+<!-- HSQL -->
+<dependency>
+   <groupId>org.hsqldb</groupId>
+   <artifactId>hsqldb</artifactId>
+   <version>2.4.0</version>
+   <scope>runtime</scope>
+</dependency>
+```
 
 고객센터(customercenter)는 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 customercenter의 선언에는 @Entity 가 아닌 @Document로 변경 되었으며, 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml)과 아래 채번기능 개발 만으로 MongoDB 에 부착시켰다
 ```
@@ -440,7 +731,60 @@ class KakaoServiceImpl extends KakaoService {
 
 ## 동기식 호출 과 Fallback 처리
 
-분석단계에서의 조건 중 하나로 주문(order)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
+분석단계에서의 조건 중 하나로 주문시 재고 확인및 사용을 위하여  주문(order) -> 재고(stock)간의 호출에서 동기식 호출을 사용하였으며, FeignClient를 이용하여 호출하였다.
+
+주문 시 (@PostPersist) 재고사용(StockService의 useStock)
+```
+
+# Order.java
+    @PostPersist
+    public void onPostPersist(){
+	Ordered ordered = new Ordered();
+        BeanUtils.copyProperties(this, ordered);
+        ordered.publishAfterCommit();
+        
+        
+        Stock stock = new Stock();
+        stock.setProductName(this.productName);
+        stock.setQty(this.qty);
+        
+        OrderApplication.applicationContext.getBean(StockService.class).useStock(stock);        
+	.....
+
+
+
+# StockService.java
+
+@FeignClient(name="stock", url="${feign.client.stock.url}")
+public interface StockService {
+	
+    @RequestMapping(method= RequestMethod.PUT, path="/stocks/useStock")
+    public void useStock(@RequestBody Stock stock);
+
+}
+
+
+```
+재고관리 서비스의 장애시 주문접수 불가 확인
+
+```
+root@siege-5c7c46b788-zjctw:/# http order:8080/orders phoneNumber="01012341234" productName="coffee1" qty=1 amt=2000
+HTTP/1.1 500 
+Connection: close
+Content-Type: application/json;charset=UTF-8
+Date: Wed, 24 Feb 2021 11:30:56 GMT
+Transfer-Encoding: chunked
+
+{
+    "error": "Internal Server Error",
+    "message": "Could not commit JPA transaction; nested exception is javax.persistence.RollbackException: Error while committing the transaction",
+    "path": "/orders",
+    "status": 500,
+    "timestamp": "2021-02-24T11:30:56.943+0000"
+}
+```
+
+주문(order)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
 
 - 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
 
@@ -927,6 +1271,42 @@ Your Order is already started. You cannot cancel!!
 ```
 
 ## CQRS / Meterialized View
+
+stock의 Ownerpage를 구현하여 재고의 남은상태와 사용상태를 조회할 수 있다.
+```
+# 오너페이지 재고 사용 확인
+root@siege:/# http http://stock:8080/ownerpages/2
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 16:33:01 GMT
+Transfer-Encoding: chunked
+
+{
+    "id": 2,
+    "productName": "coffee1",
+    "remainingQty": 80,
+    "usedQty": 50
+}
+
+# 오너페이지 제품명으로 검색
+root@siege:/# http http://stock:8080/ownerpages/search/findByProductName?productName="coffee1"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 16:34:55 GMT
+Transfer-Encoding: chunked
+
+[
+    {
+        "id": 2,
+        "productName": "coffee1",
+        "remainingQty": 130,
+        "usedQty": 0
+    }
+]
+
+```
+
+
 CustomerCenter의 Mypage를 구현하여 Order 서비스, Payment 서비스, Drink 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
 ```
 root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345679"
@@ -984,28 +1364,41 @@ Pod 생성 시 준비되지 않은 상태에서 요청을 받아 오류가 발�
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: order
+  name: stock
+  namespace: stock
   labels:
-    app: order
+    app: stock
 spec:
-  :
-        readinessProbe:
-          httpGet:
-            path: '/actuator/health'
-            port: 8080
-          initialDelaySeconds: 10 
-          timeoutSeconds: 2 
-          periodSeconds: 5 
-          failureThreshold: 10
-        livenessProbe:
-          httpGet:
-            path: '/actuator/health'
-            port: 8080
-          initialDelaySeconds: 120
-          timeoutSeconds: 2
-          periodSeconds: 5
-          failureThreshold: 5
-
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stock
+  template:
+    metadata:
+      labels:
+        app: stock
+    spec:
+      containers:
+        - name: stock
+          image: h2s2l/stock:v1
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8080
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8080
+            initialDelaySeconds: 120
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 5
 ```
 
 ## Self Healing
@@ -1053,11 +1446,12 @@ customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
 
 각 구현체들은 하나의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
 
-![image](https://user-images.githubusercontent.com/75828964/108723281-6adece00-7567-11eb-9616-82cff205f321.png)
-![image](https://user-images.githubusercontent.com/75828964/108723298-703c1880-7567-11eb-8912-c2c24c269b57.png)
-![image](https://user-images.githubusercontent.com/75828964/108723307-73370900-7567-11eb-8fda-cb13622e2b1e.png)
-![image](https://user-images.githubusercontent.com/75828964/108723317-76ca9000-7567-11eb-9dc2-0fe0765e8e3f.png)
-![image](https://user-images.githubusercontent.com/75828964/108723330-792cea00-7567-11eb-9065-09e6d73281fb.png)
+![image](https://user-images.githubusercontent.com/76020485/109002030-0481b900-76e9-11eb-82e4-d5709051992a.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002045-08154000-76e9-11eb-8af6-9c215c0495b7.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002039-064b7c80-76e9-11eb-9454-9fb3c11f631c.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002016-00559b80-76e9-11eb-8bba-b3c2761aac69.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002002-fcc21480-76e8-11eb-825d-ba4ece827676.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002024-021f5f00-76e9-11eb-9902-e74ad82a0628.PNG)
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 

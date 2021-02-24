@@ -544,129 +544,6 @@ Transfer-Encoding: chunked
     "usedQty": 0
 }
 
-# 음료 추가
-root@siege:/# http PATCH stock:8080/stocks/addStock productName="coffee1" qty=30
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Tue, 23 Feb 2021 16:32:21 GMT
-Transfer-Encoding: chunked
-
-{
-    "id": null,
-    "productName": "coffee1",
-    "qty": 30,
-    "status": "Created"
-}
-
-# 오너페이지 재고 추가 확인
-root@siege:/# http http://stock:8080/ownerpages/2
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Tue, 23 Feb 2021 16:32:27 GMT
-Transfer-Encoding: chunked
-
-{
-    "id": 2,
-    "productName": "coffee1",
-    "remainingQty": 130,
-    "usedQty": 0
-}
-
-# 음료 주문
-root@siege:/# http order:8080/orders phoneNumber="01012341234" productName="coffee1" qty=50 amt=170000
-HTTP/1.1 201 
-Content-Type: application/json;charset=UTF-8
-Date: Tue, 23 Feb 2021 16:32:56 GMT
-Location: http://order:8080/orders/5
-Transfer-Encoding: chunked
-
-{
-    "_links": {
-        "order": {
-            "href": "http://order:8080/orders/5"
-        },
-        "self": {
-            "href": "http://order:8080/orders/5"
-        }
-    },
-    "amt": 170000,
-    "createTime": "2021-02-23T16:32:56.496+0000",
-    "phoneNumber": "01012341234",
-    "productName": "coffee1",
-    "qty": 50,
-    "status": "Ordered"
-}
-
-# 오너페이지 재고 사용 확인
-root@siege:/# http http://stock:8080/ownerpages/2
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Tue, 23 Feb 2021 16:33:01 GMT
-Transfer-Encoding: chunked
-
-{
-    "id": 2,
-    "productName": "coffee1",
-    "remainingQty": 80,
-    "usedQty": 50
-}
-
-# 주문 취소
-root@siege:/# http patch http://order:8080/orders/5 status="OrderCanceled"
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Tue, 23 Feb 2021 16:33:24 GMT
-Transfer-Encoding: chunked
-
-{
-    "_links": {
-        "order": {
-            "href": "http://order:8080/orders/5"
-        },
-        "self": {
-            "href": "http://order:8080/orders/5"
-        }
-    },
-    "amt": 170000,
-    "createTime": "2021-02-23T16:32:56.496+0000",
-    "phoneNumber": "01012341234",
-    "productName": "coffee1",
-    "qty": 50,
-    "status": "OrderCanceled"
-}
-
-# 오너페이지 재고 복구 확인
-root@siege:/# http http://stock:8080/ownerpages/2
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Tue, 23 Feb 2021 16:33:28 GMT
-Transfer-Encoding: chunked
-
-{
-    "id": 2,
-    "productName": "coffee1",
-    "remainingQty": 130,
-    "usedQty": 0
-}
-
-
-
-# 오너페이지 제품명으로 검색
-root@siege:/# http http://stock:8080/ownerpages/search/findByProductName?productName="coffee1"
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Tue, 23 Feb 2021 16:34:55 GMT
-Transfer-Encoding: chunked
-
-[
-    {
-        "id": 2,
-        "productName": "coffee1",
-        "remainingQty": 130,
-        "usedQty": 0
-    }
-]
-
 ```
 
 ## API Gateway
@@ -1394,6 +1271,42 @@ Your Order is already started. You cannot cancel!!
 ```
 
 ## CQRS / Meterialized View
+
+stock의 Ownerpage를 구현하여 재고의 남은상태와 사용상태를 조회할 수 있다.
+```
+# 오너페이지 재고 사용 확인
+root@siege:/# http http://stock:8080/ownerpages/2
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 16:33:01 GMT
+Transfer-Encoding: chunked
+
+{
+    "id": 2,
+    "productName": "coffee1",
+    "remainingQty": 80,
+    "usedQty": 50
+}
+
+# 오너페이지 제품명으로 검색
+root@siege:/# http http://stock:8080/ownerpages/search/findByProductName?productName="coffee1"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 16:34:55 GMT
+Transfer-Encoding: chunked
+
+[
+    {
+        "id": 2,
+        "productName": "coffee1",
+        "remainingQty": 130,
+        "usedQty": 0
+    }
+]
+
+```
+
+
 CustomerCenter의 Mypage를 구현하여 Order 서비스, Payment 서비스, Drink 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
 ```
 root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345679"
@@ -1451,28 +1364,41 @@ Pod 생성 시 준비되지 않은 상태에서 요청을 받아 오류가 발�
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: order
+  name: stock
+  namespace: stock
   labels:
-    app: order
+    app: stock
 spec:
-  :
-        readinessProbe:
-          httpGet:
-            path: '/actuator/health'
-            port: 8080
-          initialDelaySeconds: 10 
-          timeoutSeconds: 2 
-          periodSeconds: 5 
-          failureThreshold: 10
-        livenessProbe:
-          httpGet:
-            path: '/actuator/health'
-            port: 8080
-          initialDelaySeconds: 120
-          timeoutSeconds: 2
-          periodSeconds: 5
-          failureThreshold: 5
-
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stock
+  template:
+    metadata:
+      labels:
+        app: stock
+    spec:
+      containers:
+        - name: stock
+          image: h2s2l/stock:v1
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8080
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8080
+            initialDelaySeconds: 120
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 5
 ```
 
 ## Self Healing
@@ -1520,11 +1446,12 @@ customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
 
 각 구현체들은 하나의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
 
-![image](https://user-images.githubusercontent.com/75828964/108723281-6adece00-7567-11eb-9616-82cff205f321.png)
-![image](https://user-images.githubusercontent.com/75828964/108723298-703c1880-7567-11eb-8912-c2c24c269b57.png)
-![image](https://user-images.githubusercontent.com/75828964/108723307-73370900-7567-11eb-8fda-cb13622e2b1e.png)
-![image](https://user-images.githubusercontent.com/75828964/108723317-76ca9000-7567-11eb-9dc2-0fe0765e8e3f.png)
-![image](https://user-images.githubusercontent.com/75828964/108723330-792cea00-7567-11eb-9065-09e6d73281fb.png)
+![image](https://user-images.githubusercontent.com/76020485/109002030-0481b900-76e9-11eb-82e4-d5709051992a.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002045-08154000-76e9-11eb-8af6-9c215c0495b7.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002039-064b7c80-76e9-11eb-9454-9fb3c11f631c.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002016-00559b80-76e9-11eb-8bba-b3c2761aac69.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002002-fcc21480-76e8-11eb-825d-ba4ece827676.PNG)
+![image](https://user-images.githubusercontent.com/76020485/109002024-021f5f00-76e9-11eb-9902-e74ad82a0628.PNG)
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 

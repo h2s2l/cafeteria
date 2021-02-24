@@ -2,7 +2,7 @@ version: 0.2
 
 env: 
   variables:
-    _PROJECT_NAME: "skccuser21-order"
+    _PROJECT_NAME: "skccuser21/order"
 
 phases:
   install:

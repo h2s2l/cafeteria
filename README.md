@@ -53,7 +53,7 @@
 # 분석설계
 
 1. Event Storming 모델
-![image](https://user-images.githubusercontent.com/75828964/108632009-19273c80-74b0-11eb-91d2-d0c2b23f647a.png)
+![image](https://user-images.githubusercontent.com/76020485/108925819-a15c3c00-7680-11eb-9a59-8ffb90429515.PNG)
 1. 헥사고날 아키텍처 다이어그램 도출
 ![image](https://user-images.githubusercontent.com/75828964/108683149-8e3c5580-7534-11eb-9d76-c09a3c79c744.png)
 

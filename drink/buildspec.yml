@@ -73,42 +73,31 @@ phases:
                   app: $_PROJECT_NAME
               spec:
                 containers:
-                - name: $_PROJECT_NAME
-                  env:
-                  - name: MARIADB_DATABASE
-                    valueFrom:
-                      configMapKeyRef:
-                        name: mariadb
-                        key: database
-                  - name: MARIADB_USERNAME
-                    valueFrom:
-                      secretKeyRef:
-                        name: mariadb
-                        key: username
-                  - name: MARIADB_PASSWORD
-                    valueFrom:
-                      secretKeyRef:
-                        name: mariadb
-                        key: password
-                  image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
-                  ports:
-                    - containerPort: 8080
-                  readinessProbe:
-                    httpGet:
-                      path: /actuator/health
-                      port: 8080
-                    initialDelaySeconds: 10
-                    timeoutSeconds: 2
-                    periodSeconds: 5
-                    failureThreshold: 10
-                  livenessProbe:
-                    httpGet:
-                      path: /actuator/health
-                      port: 8080
-                    initialDelaySeconds: 120
-                    timeoutSeconds: 2
-                    periodSeconds: 5
-                    failureThreshold: 5
+                  - name: $_PROJECT_NAME
+                    image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
+                    ports:
+                      - containerPort: 8080
+                    readinessProbe:
+                      httpGet:
+                        path: /actuator/health
+                        port: 8080
+                      initialDelaySeconds: 10
+                      timeoutSeconds: 2
+                      periodSeconds: 5
+                      failureThreshold: 10
+                    livenessProbe:
+                      httpGet:
+                        path: /actuator/health
+                        port: 8080
+                      initialDelaySeconds: 120
+                      timeoutSeconds: 2
+                      periodSeconds: 5
+                      failureThreshold: 5
+                    resources:
+                      limits:
+                        cpu: 500m
+                      requests:
+                        cpu: 200m
           EOF
 cache:
   paths:

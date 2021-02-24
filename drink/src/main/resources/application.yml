@@ -67,17 +67,3 @@ spring:
         event-out:
           destination: cafeteria
           contentType: application/json
-
-server:
-  tomcat:
-    accesslog:
-      enabled: true
-      pattern:  '%h %l %u %t "%r" %s %bbyte %Dms'
-    basedir: /logs/drink
-
-logging:
-  path: /logs/drink
-  file:
-    max-history: 30
-  level:
-    org.springframework.cloud: debug

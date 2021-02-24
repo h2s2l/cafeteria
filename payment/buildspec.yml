@@ -45,6 +45,7 @@ phases:
           kind: Service
           metadata:
             name: $_PROJECT_NAME
+            namespace: cafeteria
             labels:
               app: $_PROJECT_NAME
           spec:
@@ -60,6 +61,7 @@ phases:
           kind: Deployment
           metadata:
             name: $_PROJECT_NAME
+            namespace: cafeteria
             labels:
               app: $_PROJECT_NAME
           spec:

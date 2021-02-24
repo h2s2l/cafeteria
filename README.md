@@ -63,7 +63,7 @@
 1. Event Storming 모델
 ![image](https://user-images.githubusercontent.com/76020485/108925819-a15c3c00-7680-11eb-9a59-8ffb90429515.PNG)
 1. 헥사고날 아키텍처 다이어그램 도출
-![image](https://user-images.githubusercontent.com/76020485/108926445-c8ffd400-7681-11eb-8ca4-4dc5b0dd1e31.PNG)
+![image](https://user-images.githubusercontent.com/76020485/108991056-f331b000-76da-11eb-866a-a69d7021c83e.PNG)
 
 # 구현:
 

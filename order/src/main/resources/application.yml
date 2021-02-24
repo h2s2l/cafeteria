@@ -75,6 +75,8 @@ feign:
   client:
     payment:
       url: http://payment:8080
+    stock:
+      url: http://stock:8080
   hystrix:
     enabled: false 
 

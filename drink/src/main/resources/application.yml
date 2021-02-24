@@ -25,10 +25,10 @@ spring:
       bindings:
         event-in:
           group: drink
-          destination: cafeteria_stock
+          destination: cafeteria
           contentType: application/json
         event-out:
-          destination: cafeteria_stock
+          destination: cafeteria
           contentType: application/json
 
 logging:
@@ -41,6 +41,11 @@ server:
 
 spring:
   profiles: docker
+  jpa:
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
   cloud:
     stream:
       kafka:
@@ -57,8 +62,22 @@ spring:
       bindings:
         event-in:
           group: drink
-          destination: cafeteria_stock
+          destination: cafeteria
           contentType: application/json
         event-out:
-          destination: cafeteria_stock
+          destination: cafeteria
           contentType: application/json
+
+server:
+  tomcat:
+    accesslog:
+      enabled: true
+      pattern:  '%h %l %u %t "%r" %s %bbyte %Dms'
+    basedir: /logs/drink
+
+logging:
+  path: /logs/drink
+  file:
+    max-history: 30
+  level:
+    org.springframework.cloud: debug

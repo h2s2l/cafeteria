@@ -82,4 +82,4 @@ phases:
           EOF
 cache:
   paths:
-    - '/root/.m2/**/*'
+    - '/root/.m2/**/*' 

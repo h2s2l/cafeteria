@@ -548,7 +548,7 @@ Transfer-Encoding: chunked
 
 ## API Gateway
 API Gateway를 통하여 동일 진입점으로 진입하여 각 마이크로 서비스를 접근할 수 있다.
-외부에서 접근을 위하여 Gateway의 Service는 LoadBalancer Type으로 생성했다.
+외부에서 접근을 위하여 Gateway의 Service는 LoadBalancer Type으로 생성했다. (TooManyLoadBalancers인하여 ClusteerIP로 수정)
 
 ```
 # application.yml
@@ -597,22 +597,131 @@ spec:
     app: gateway
     
 $ kubectl get svc
-NAME             TYPE           CLUSTER-IP       EXTERNAL-IP                                                                  PORT(S)          AGE
-customercenter   ClusterIP      10.100.52.95     <none>                                                                       8080/TCP         9h
-drink            ClusterIP      10.100.136.6     <none>                                                                       8080/TCP         9h
-gateway          LoadBalancer   10.100.164.152   a6826d83b5c8e4f5dad7129c7cdf0ded-93964597.ap-northeast-2.elb.amazonaws.com   8080:30109/TCP   9h
-order            ClusterIP      10.100.197.15    <none>                                                                       8080/TCP         9h
-payment          ClusterIP      10.100.242.153   <none>                                                                       8080/TCP         9h
+NAME                     TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/customercenter   ClusterIP   10.100.228.149   <none>        8080/TCP   16h
+service/drink            ClusterIP   10.100.119.79    <none>        8080/TCP   16h
+service/gateway          ClusterIP   10.100.234.13    <none>        8080/TCP   3m21s
+service/order            ClusterIP   10.100.0.205     <none>        8080/TCP   16h
+service/payment          ClusterIP   10.100.46.74     <none>        8080/TCP   16h
+service/stock            ClusterIP   10.100.134.60    <none>        8080/TCP   16h
+```
 
 ```
- - order  
-![image](https://user-images.githubusercontent.com/76020485/108672134-e53a2e80-7524-11eb-8008-ebcfbd8e9cbe.PNG)
- - payment  
-![image](https://user-images.githubusercontent.com/76020485/108672136-e5d2c500-7524-11eb-824e-4066bb87376b.PNG)
- - drink  
-![image](https://user-images.githubusercontent.com/76020485/108672138-e66b5b80-7524-11eb-9c27-cf2089f4ac08.PNG)
- - customercenter  
-![image](https://user-images.githubusercontent.com/76020485/108672131-e4a19800-7524-11eb-894e-832ed6519b53.PNG)
+# order
+root@siege-5c7c46b788-zjctw:/# http http://10.100.234.13:8080/orders/1291
+HTTP/1.1 200 OK
+Content-Type: application/hal+json;charset=UTF-8
+Date: Thu, 25 Feb 2021 02:26:02 GMT
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/1291"
+        },
+        "self": {
+            "href": "http://order:8080/orders/1291"
+        }
+    },
+    "amt": 1000,
+    "createTime": "2021-02-25T02:05:53.714+0000",
+    "phoneNumber": "01012341234",
+    "productName": "coffee1",
+    "qty": 2,
+    "status": "Ordered"
+
+# payment
+root@siege-5c7c46b788-zjctw:/# http http://10.100.234.13:8080/payments/1
+HTTP/1.1 200 OK
+Content-Type: application/hal+json;charset=UTF-8
+Date: Thu, 25 Feb 2021 02:30:10 GMT
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "payment": {
+            "href": "http://payment:8080/payments/1"
+        },
+        "self": {
+            "href": "http://payment:8080/payments/1"
+        }
+    },
+    "amt": 2000,
+    "createTime": "2021-02-24T11:53:35.970+0000",
+    "orderId": 1,
+    "phoneNumber": "01012341234",
+    "productName": "coffee1",
+    "qty": 1,
+    "status": "PaymentApproved"
+}
+
+# drink
+root@siege-5c7c46b788-zjctw:/# http http://10.100.234.13:8080/drinks/1  
+HTTP/1.1 200 OK
+Content-Type: application/hal+json;charset=UTF-8
+Date: Thu, 25 Feb 2021 02:30:39 GMT
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "drink": {
+            "href": "http://drink:8080/drinks/1"
+        },
+        "self": {
+            "href": "http://drink:8080/drinks/1"
+        }
+    },
+    "createTime": "2021-02-24T14:08:24.733+0000",
+    "orderId": 3,
+    "phoneNumber": "01012341234",
+    "productName": "coffee1",
+    "qty": 2,
+    "status": "PaymentApproved"
+}
+
+# stock
+root@siege-5c7c46b788-zjctw:/# http http://10.100.234.13:8080/stocks/1
+HTTP/1.1 200 OK
+Content-Type: application/hal+json;charset=UTF-8
+Date: Thu, 25 Feb 2021 02:31:43 GMT
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/1"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/1"
+        }
+    },
+    "productName": "coffee1",
+    "qty": 474,
+    "status": "StockDeducted"
+}
+
+# custmorcenter
+root@siege-5c7c46b788-zjctw:/# http http://10.100.234.13:8080/mypages/search/findByPhoneNumber?phoneNumber=01011112222
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=UTF-8
+Date: Thu, 25 Feb 2021 02:36:33 GMT
+transfer-encoding: chunked
+
+[
+    {
+        "amt": 9000,
+        "id": 3,
+        "orderId": 3,
+        "phoneNumber": "01011112222",
+        "productName": "coffee2",
+        "qty": 3,
+        "status": "OrderCanceled"
+    }
+]
+
+
+```
+
 
 ## 폴리글랏 퍼시스턴스
 
@@ -1288,19 +1397,19 @@ java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
 앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
 
 
-- 결제서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다:
+- 재고서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다:
 ```
-$ kubectl get pods
+root@labs-776969070:/home/project# kubectl get pod
 NAME                              READY   STATUS    RESTARTS   AGE
-customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
-drink-7cb565cb4-d2vwb             1/1     Running   0          37m
-gateway-5dd866cbb6-czww9          1/1     Running   0          3d1h
-order-595c9b45b9-xppbf            1/1     Running   0          36m
-payment-698bfbdf7f-vp5ft          1/1     Running   0          2m32s
-siege-5b99b44c9c-8qtpd            1/1     Running   0          3d1h
+customercenter-5fd496bb57-wjgfl   1/1     Running   0          15h
+drink-55bd6cf5db-7dlbj            1/1     Running   0          11h
+gateway-8d6cb9d7d-sf8b8           1/1     Running   0          15h
+order-7bf9f96889-z5ccw            1/1     Running   0          10h
+payment-554f5b6fd7-xbj4w          1/1     Running   0          13h
+siege-5c7c46b788-zjctw            1/1     Running   0          16h
+stock-b54dc766f-m582d             1/1     Running   0          10h
 
-
-$ kubectl autoscale deploy payment --min=1 --max=10 --cpu-percent=15
+kubectl autoscale deploy stock --min=1 --max=10 --cpu-percent=15
 horizontalpodautoscaler.autoscaling/payment autoscaled
 
 $ kubectl get hpa
@@ -1563,58 +1672,4 @@ drwxr-xr-x    2 root     root          4096 Feb 24 14:04 logs
 -rw-r--r--    1 root     root        206012 Feb 24 14:09 spring.log.2021-02-24.2.gz
 drwxr-xr-x    3 root     root          4096 Feb 24 14:04 work
 /logs/stock # 
-```
-
-## ConfigMap / Secret
-mongo db의 database이름과 username, password는 환경변수를 지정해서 사용핳 수 있도록 하였다.
-database 이름은 kubernetes의 configmap을 사용하였고 username, password는 secret을 사용하여 지정하였다.
-
-```
-# secret 생성
-kubectl create secret generic mongodb --from-literal=username=mongodb --from-literal=password=mongodb --namespace cafeteria
-
-# configmap.yaml
-
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mongodb
-  namespace: cafeteria
-data:
-  database: "cafeteria"
-  
-
-# application.yml
-
-spring:
-  data:
-    mongodb:
-      uri: mongodb://my-mongodb-0.my-mongodb-headless.mongodb.svc.cluster.local:27017,my-mongodb-1.my-mongodb-headless.mongodb.svc.cluster.local:27017
-      database: ${MONGODB_DATABASE}
-      username: ${MONGODB_USERNAME}
-      password: ${MONGODB_PASSWORD}
-
-#buildspec.yaml
-spec:
-containers:
-  - name: $_PROJECT_NAME
-    image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
-    ports:
-    - containerPort: 8080
-    env:
-    - name: MONGODB_DATABASE
-      valueFrom:
-	configMapKeyRef:
-	  name: mongodb
-	  key: database
-    - name: MONGODB_USERNAME
-      valueFrom:
-	secretKeyRef:
-	  name: mongodb
-	  key: username
-    - name: MONGODB_PASSWORD
-      valueFrom:
-	secretKeyRef:
-	  name: mongodb
-	  key: password
 ```

@@ -548,7 +548,7 @@ Transfer-Encoding: chunked
 
 ## API Gateway
 API Gateway를 통하여 동일 진입점으로 진입하여 각 마이크로 서비스를 접근할 수 있다.
-외부에서 접근을 위하여 Gateway의 Service는 LoadBalancer Type으로 생성했다. (TooManyLoadBalancers인하여 ClusteerIP로 수정)
+외부에서 접근을 위하여 Gateway의 Service는 LoadBalancer Type으로 생성했다. (TooManyLoadBalancers인하여 ClusterIP로 수정)
 
 ```
 # application.yml
@@ -1218,8 +1218,6 @@ Events:
 
 ## 무정지 재배포 (Readiness)
 
-* 먼저 무정지 재배포가 100% 되는 것인지 확인하기 위해서 Autoscaler 이나 CB 설정을 제거함
-
 - seige 로 배포작업 직전에 워크로드를 모니터링 함.
 ```
 # siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
@@ -1337,6 +1335,7 @@ Shortest transaction:           0.00
 ![image](https://user-images.githubusercontent.com/76020485/109002016-00559b80-76e9-11eb-8bba-b3c2761aac69.PNG)
 ![image](https://user-images.githubusercontent.com/76020485/109002002-fcc21480-76e8-11eb-825d-ba4ece827676.PNG)
 ![image](https://user-images.githubusercontent.com/76020485/109002024-021f5f00-76e9-11eb-9902-e74ad82a0628.PNG)
+
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 

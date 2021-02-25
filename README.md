@@ -1226,10 +1226,9 @@ root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/
 ** SIEGE 4.0.4
 ** Preparing 100 concurrent users for battle.
 The server is now under siege...
-
 ....
-
-
+HTTP/1.1 201     1.03 secs:     322 bytes ==> POST http://order:8080/orders
+....
 HTTP/1.1 500     2.79 secs:     248 bytes ==> POST http://order:8080/orders
 HTTP/1.1 500     1.93 secs:     248 bytes ==> POST http://order:8080/orders
 HTTP/1.1 500     1.46 secs:     248 bytes ==> POST http://order:8080/orders

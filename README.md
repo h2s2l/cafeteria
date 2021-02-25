@@ -886,50 +886,40 @@ Transfer-Encoding: chunked
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
 
-결제가 이루어진 후에 상점시스템으로 이를 알려주는 행위는 동기식이 아니라 비 동기식으로 처리하여 상점 시스템의 처리를 위하여 결제주문이 블로킹 되지 않아도록 처리한다.
+결제가 취소시 재고 원복은 비동기식으로 처리하여 결제 취소 시 재고서비스의 상태에 따른 영향도를 제거하였다.
  
 - 이를 위하여 결제이력에 기록을 남긴 후에 곧바로 결제승인이 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
  
 ```
-package cafeteria;
+# Payment.java
 
-@Entity
-@Table(name="Payment")
-public class Payment {
-
- :
-    @PostPersist
-    public void onPostPersist(){
-        PaymentApproved paymentApproved = new PaymentApproved();
-        BeanUtils.copyProperties(this, paymentApproved);
-        paymentApproved.publishAfterCommit();
+    @PostUpdate
+    public void onPostUpdate(){
+        PaymentCanceled paymentCanceled = new PaymentCanceled();
+        BeanUtils.copyProperties(this, paymentCanceled);
+        paymentCanceled.publishAfterCommit();
 
     }
 
-}
 ```
-- 음료 서비스에서는 Ordered 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
+- 재고 서비스에서는 결제취소(PaymentCanceled) 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
 
 ```
-package cafeteria;
+# (stock) PolicyHandler.java
 
-:
+   @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverPaymentCanceled_(@Payload PaymentCanceled paymentCanceled){
 
-    @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverOrdered_(@Payload Ordered ordered){
-
-        if(ordered.isMe()){
-            log.info("##### listener  : " + ordered.toJson());
+        if(paymentCanceled.isMe()){
+            System.out.println("##### listener  : " + paymentCanceled.toJson());
             
-            List<Drink> drinks = drinkRepository.findByOrderId(ordered.getId());
-            for(Drink drink : drinks) {
-           	drink.setPhoneNumber(ordered.getPhoneNumber());
-            	drink.setProductName(ordered.getProductName());
-               	drink.setQty(ordered.getQty());
-               	drinkRepository.save(drink);
+            List<Stock> stocks = stockRepository.findByProductName(paymentCanceled.getProductName());
+            for(Stock stock : stocks) {
+            	stock.setQty(stock.getQty() + paymentCanceled.getQty());
+            	stock.setStatus("UseCancled");
+            	stockRepository.save(stock);
             }
         }
-    }
 
 ```
 Replica를 추가했을 때 중복없이 수신할 수 있도록 서비스별 Kafka Group을 동일하게 지정했다.
@@ -939,40 +929,13 @@ spring:
     stream:
       bindings:
         event-in:
-          group: drink
+          group: stock
           destination: cafeteria
           contentType: application/json
         :
 ```
-실제 구현에서 카톡은 화면에 출력으로 대체하였다.
-  
-```    
-  @StreamListener(KafkaProcessor.INPUT)
-  def whenReceipted_then_UPDATE_3(@Payload made :Made) {
-    try {
-      if (made.isMe()) {
-        
-        val message :KakaoMessage = new KakaoMessage()
-        message.phoneNumber = made.phoneNumber
-        message.message = s"""Your Order is ${made.status}\nCome and Take it, Please!"""
-        kakaoService.sendKakao(message)
-      }
-    } catch {
-      case e :Exception => e.printStackTrace()
-    }
-  }
 
-@Component
-class KakaoServiceImpl extends KakaoService {
-  
-	override def sendKakao(message :KakaoMessage) {
-		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
-	}
-}
-
-```
-
-음료 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 음료시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없다:
+재고 서비스 장애 시 주문 취소 시나리오  
 ```
 # 음료 서비스 (drink) 를 잠시 내려놓음
 $ kubectl delete deploy drink
@@ -1307,54 +1270,6 @@ Transfer-Encoding: chunked
 ```
 
 
-CustomerCenter의 Mypage를 구현하여 Order 서비스, Payment 서비스, Drink 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
-```
-root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345679"
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:57:45 GMT
-Transfer-Encoding: chunked
-
-[
-    {
-        "amt": 5000,
-        "id": 4544,
-        "orderId": 4,
-        "phoneNumber": "01012345679",
-        "productName": "coffee",
-        "qty": 3,
-        "status": "Made"
-    },
-    {
-        "amt": 5000,
-        "id": 4545,
-        "orderId": 5,
-        "phoneNumber": "01012345679",
-        "productName": "coffee",
-        "qty": 3,
-        "status": "Ordered"
-    },
-    {
-        "amt": 5000,
-        "id": 4546,
-        "orderId": 6,
-        "phoneNumber": "01012345679",
-        "productName": "coffee",
-        "qty": 3,
-        "status": "Receipted"
-    },
-    {
-        "amt": 5000,
-        "id": 4547,
-        "orderId": 7,
-        "phoneNumber": "01012345679",
-        "productName": "coffee",
-        "qty": 3,
-        "status": "Ordered"
-    }
-]
-
-```
 
 # 운영
 
@@ -1553,7 +1468,7 @@ Successful transactions:         640
 Failed transactions:            1123
 Longest transaction:           11.25
 Shortest transaction:           0.09
-
+```
 - order 서비스의 로그를 확인하여 Circuit이 OPEN된 것을 확인한다.
 ```
 ERROR 1 --- [o-8080-exec-172] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.transaction.TransactionSystemException: Could not commit JPA transaction; nested exception is javax.persistence.RollbackException: Error while committing the transaction] with root cause
@@ -1570,7 +1485,7 @@ java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
 
 ```
 
-- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 40% 가 성공하였고, 60%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
+- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 36%의 Availability는 사용성에 있어 좋지 않기 때문에 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
 
 ### 오토스케일 아웃
 앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 

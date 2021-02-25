@@ -628,106 +628,6 @@ HSQL 적용을 위하여 stock의 pom.xml에 아래의 dependency설정하였다
 </dependency>
 ```
 
-고객센터(customercenter)는 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 customercenter의 선언에는 @Entity 가 아닌 @Document로 변경 되었으며, 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml)과 아래 채번기능 개발 만으로 MongoDB 에 부착시켰다
-```
-#Mypage.scala
-
-@Document
-class Mypage {
-  
-  @Id
-  @BeanProperty
-  var id :Long = 0L
-  :
-```
-MongoDB는 Sequence가 지원되지 않아 별도 Collection을 통해서 id sequence를 생성했다.
-```
-# DatabseSequence.scala
-abstract class Sequence {
-  var seq :Long
-}
-case class InitialSequence(var seq : Long) extends Sequence
-
-@Document(collection = "database_sequences")
-class DatabaseSequence extends Sequence {
-
-  
-  @BeanProperty
-  @Id
-  var id: String = null
-  
-  @BeanProperty
-  var seq :Long = 0L
-
-}
-
-# MypageViewHandler.scala
-
-def generateSequence (seqName :String) :Long = {
-    val query :Query = new Query(Criteria.where("_id").is(seqName));
-    val options :FindAndModifyOptions = new FindAndModifyOptions().returnNew(true).upsert(true)
-    val update :Update = new Update().inc("seq",1)
-    
-    val sequence :Option[DatabaseSequence] = Option(mongoOperations.findAndModify(query, update, options, classOf[DatabaseSequence]))
-    sequence.getOrElse(InitialSequence(1L)).seq
-}
-  
-  @StreamListener(KafkaProcessor.INPUT)
-  def whenOrdered_then_CREATE_1(@Payload ordered :Ordered) {
-    try {
-      if (ordered.isMe()) {
-        
-        val mypage :Mypage = new Mypage()
-        mypage.id = generateSequence(Mypage.SEQUENCE_NAME)
-	:
-
-#pom.xml
-
-<dependencies>
-:
-    <dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-data-mongodb</artifactId>
-    </dependency>
-:
-</dependencies>
-
-```
-## 폴리글랏 프로그래밍
-
-고객관리 서비스(customercenter)의 시나리오인 주문상태 변경에 따라 고객에게 카톡메시지 보내는 기능의 구현 파트는 해당 팀이 scala를 이용하여 구현하기로 하였다. 해당 Scala 구현체는 각 이벤트를 수신하여 처리하는 Kafka consumer 로 구현되었고 코드는 다음과 같다:
-```
-import org.springframework.messaging.SubscribableChannel
-import org.springframework.cloud.stream.annotation.Output
-import org.springframework.cloud.stream.annotation.Input
-import org.springframework.messaging.MessageChannel
-
-object KafkaProcessor {
-  final val INPUT = "event-in"
-  final val OUTPUT = "event-out"
-}
-
-trait KafkaProcessor {
-
-  @Input(KafkaProcessor.INPUT)
-  def inboundTopic() :SubscribableChannel
-
-  @Output(KafkaProcessor.OUTPUT)
-  def outboundTopic() :MessageChannel
-}
-
- # 카톡호출 API
-import org.springframework.stereotype.Component
-
-@Component
-class KakaoServiceImpl extends KakaoService {
-  
-	override def sendKakao(message :KakaoMessage) {
-		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
-	}
-}
-
-```
 
 ## 동기식 호출 과 Fallback 처리
 
@@ -783,104 +683,6 @@ Transfer-Encoding: chunked
     "timestamp": "2021-02-24T11:30:56.943+0000"
 }
 ```
-
-주문(order)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
-
-- 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
-
-```
-# (payment) PaymentService.java
-
-package cafeteria.external;
-
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-
-@FeignClient(name="payment", url="${feign.client.payment.url}")
-public interface PaymentService {
-
-    @RequestMapping(method= RequestMethod.POST, path="/payments")
-    public void pay(@RequestBody Payment payment);
-
-}
-```
-
-- 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
-```
-# Order.java (Entity)
-
-    @PostPersist
-    public void onPostPersist(){
-        :
-
-        Payment payment = new Payment();
-        payment.setOrderId(this.id);
-        payment.setPhoneNumber(this.phoneNumber);
-        payment.setAmt(this.amt);
-        
-        OrderApplication.applicationContext.getBean(PaymentService.class).pay(payment);
-
-
-    }
-```
-
-- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 시스템이 장애가 나면 주문도 못받는다는 것을 확인:
-
-
-```
-# 결제 (payment) 서비스를 잠시 내려놓음
-$ kubectl delete deploy payment
-deployment.apps "payment" deleted
-
-#주문처리
-
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
-HTTP/1.1 500 
-Connection: close
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:39:23 GMT
-Transfer-Encoding: chunked
-{
-    "error": "Internal Server Error",
-    "message": "Could not commit JPA transaction; nested exception is javax.persistence.RollbackException: Error while committing the transaction",
-    "path": "/orders",
-    "status": 500,
-    "timestamp": "2021-02-20T14:39:23.185+0000"
-}
-
-#결제서비스 재기동
-$ kubectl apply -f deployment.yml
-deployment.apps/payment created
-
-#주문처리
-
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
-HTTP/1.1 201 
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:51:42 GMT
-Location: http://order:8080/orders/6
-Transfer-Encoding: chunked
-
-{
-    "_links": {
-        "order": {
-            "href": "http://order:8080/orders/6"
-        },
-        "self": {
-            "href": "http://order:8080/orders/6"
-        }
-    },
-    "amt": 5000,
-    "createTime": "2021-02-20T14:51:40.580+0000",
-    "phoneNumber": "01012345679",
-    "productName": "coffee",
-    "qty": 3,
-    "status": "Ordered"
-}
-```
-- 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
 
 
@@ -1318,17 +1120,22 @@ spec:
 
 ## Self Healing
 livenessProbe를 설정하여 문제가 있을 경우 스스로 재기동 되도록 한다.
-```	  
-# mongodb down
-$ helm delete my-mongodb --namespace mongodb
-release "my-mongodb" uninstalled
+health check의 httpGet 정보를 임의로 수정하여 문제상황을 가정하였으며 describe를 이용하여 pod의 재기동 상태를 확인하였다.
 
-# mongodb start
-$ helm install my-mongodb bitnami/mongodb --namespace mongodb -f values.yaml
 
-# mongodb를 사용하는 customercenter 서비스가 liveness에 실패하여 재기동하고 새롭게 시작한 mongo db에 접속한다. 
 
-$ kubectl describe pods customercenter-7f57cf5f9f-csp2b
+```	
+# stock의 deployment
+ livenessProbe:
+   httpGet:
+     path: /actuator/health
+     port: 8080
+   initialDelaySeconds: 120
+   timeoutSeconds: 2
+   periodSeconds: 5
+   failureThreshold: 5
+
+$ kubectl describe pods stock-7f57cf5f9f-csp2b
 :
 Events:
   Type     Reason     Age                   From     Message
@@ -1343,16 +1150,7 @@ Events:
   Warning  Unhealthy  14s                   kubelet  Readiness probe failed: HTTP probe failed with statuscode: 503
   Warning  Unhealthy  11s (x13 over 6h21m)  kubelet  Liveness probe failed: Get http://10.64.1.29:8080/actuator/health: net/http: request canceled (Client.Timeout exceeded while awaiting headers)
   
-$ kubectl get pods -w
-NAME                              READY   STATUS    RESTARTS   AGE
-customercenter-7f57cf5f9f-csp2b   1/1     Running   0          20h
-drink-7cb565cb4-d2vwb             1/1     Running   0          59m
-gateway-5dd866cbb6-czww9          1/1     Running   0          3d1h
-order-595c9b45b9-xppbf            1/1     Running   0          58m
-payment-698bfbdf7f-vp5ft          1/1     Running   0          24m
-siege-5b99b44c9c-8qtpd            1/1     Running   0          3d1h
-customercenter-7f57cf5f9f-csp2b   0/1     Running   1          20h
-customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
+
 
 ```
 
@@ -1572,32 +1370,6 @@ Shortest transaction:	        0.04
 
 ```
 
-## 모니터링
-모니터링을 위하여 monitor namespace에 Prometheus와 Grafana를 설치하였다.
-
-```
-$ kubectl get deploy -n monitor
-NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE
-cafe-grafana                          1/1     1            1           2d
-cafe-kube-prometheus-stack-operator   1/1     1            1           2d
-cafe-kube-state-metrics               1/1     1            1           2d
-```
-grafana 접근을 위해서 grafana의 Service는 LoadBalancer로 생성하였다.
-```
-$ kubectl get svc -n monitor
-NAME                                      TYPE           CLUSTER-IP       EXTERNAL-IP                                                                    PORT(S)                      AGE
-alertmanager-operated                     ClusterIP      None             <none>                                                                         9093/TCP,9094/TCP,9094/UDP   9h
-cafe-grafana                              ClusterIP      10.100.179.228   <none>                                                                         80/TCP                       9h
-cafe-grafana-ex                           LoadBalancer   10.100.108.223   a9b197a76a33a439b93a3708952f6f9a-1551287323.ap-northeast-2.elb.amazonaws.com   80:31391/TCP                 9h
-cafe-kube-prometheus-stack-alertmanager   ClusterIP      10.100.15.211    <none>                                                                         9093/TCP                     9h
-cafe-kube-prometheus-stack-operator       ClusterIP      10.100.212.34    <none>                                                                         443/TCP                      9h
-cafe-kube-prometheus-stack-prometheus     ClusterIP      10.100.91.250    <none>                                                                         9090/TCP                     9h
-cafe-kube-state-metrics                   ClusterIP      10.100.91.69     <none>                                                                         8080/TCP                     9h
-cafe-prometheus-node-exporter             ClusterIP      10.100.16.9      <none>                                                                         9100/TCP                     9h
-prometheus-operated                       ClusterIP      None             <none>                                                                         9090/TCP                     9h
-```
-![image](https://user-images.githubusercontent.com/75828964/108602078-625d8a80-73e3-11eb-9517-486c2b5bd584.png)
-![image](https://user-images.githubusercontent.com/75828964/108602105-89b45780-73e3-11eb-9bdc-268c1f929511.png)
 
 ## 무정지 재배포
 
@@ -1742,7 +1514,7 @@ server:
     basedir: /logs/drink
 
 logging:
-  path: /logs/drink
+  path: /logs/stock
   file:
     max-history: 30
   level:
@@ -1750,33 +1522,13 @@ logging:
 
 # deployment.yaml
 
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: drink
-  labels:
-    app: drink
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: drink
-  template:
-    metadata:
-      labels:
-        app: drink
-    spec:
-      containers:
-      - name: drink
-        image: beatific/drink:v1
-        :
-        volumeMounts:
-        - name: logs
-          mountPath: /logs
-      volumes:
-      - name: logs
-        persistentVolumeClaim:
-          claimName: logs
+volumeMounts:
+ - name: logs
+  mountPath: /logs
+  volumes:
+   - name: logs
+   persistentVolumeClaim:
+     claimName: logs
 
 # pvc.yaml
 
@@ -1791,23 +1543,27 @@ spec:
     requests:
       storage: 1Gi
 ```
-drink deployment를 삭제하고 재기동해도 log는 삭제되지 않는다.
+stock deployment를 삭제하고 재기동해도 log는 삭제되지 않는다.
 
 ```
 $ kubectl delete -f drink/kubernetes/deployment.yml
-deployment.apps "drink" deleted
+deployment.apps "stock" deleted
 
 $ kubectl apply -f drink/kubernetes/deployment.yml
-deployment.apps/drink created
+deployment.apps/stock created
 
-$ kubectl exec -it drink-7cb565cb4-8c7pq -- /bin/sh
-/logs/drink # ls -ltr
-total 868
-drwxr-xr-x    3 root     root            20 Feb 22 14:21 work
-drwxr-xr-x    2 root     root            72 Feb 23 00:00 logs
--rw-r--r--    1 root     root          9454 Feb 23 04:03 spring.log.2021-02-22.0.gz
--rw-r--r--    1 root     root        875371 Feb 23 07:27 spring.log
-
+root@labs-776969070:/home/project/team/cafeteria# kubectl exec -it stock-68d468588d-rcpnm -c stock  -- /bin/sh  
+/logs/stock # ls -al
+total 2068
+drwxr-xr-x    4 root     root          4096 Feb 24 14:09 .
+drwxr-xr-x    5 root     root          4096 Feb 24 14:04 ..
+drwxr-xr-x    2 root     root          4096 Feb 24 14:04 logs
+-rw-r--r--    1 root     root       1446032 Feb 24 14:09 spring.log
+-rw-r--r--    1 root     root        226658 Feb 24 14:08 spring.log.2021-02-24.0.gz
+-rw-r--r--    1 root     root        209202 Feb 24 14:09 spring.log.2021-02-24.1.gz
+-rw-r--r--    1 root     root        206012 Feb 24 14:09 spring.log.2021-02-24.2.gz
+drwxr-xr-x    3 root     root          4096 Feb 24 14:04 work
+/logs/stock # 
 ```
 
 ## ConfigMap / Secret

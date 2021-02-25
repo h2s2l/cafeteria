@@ -848,112 +848,192 @@ spring:
 
 재고 서비스 장애 시 주문 취소 시나리오  
 ```
-# 음료 서비스 (drink) 를 잠시 내려놓음
-$ kubectl delete deploy drink
-deployment.apps "drink" deleted
-
-#주문처리
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
+# stock - 음료 추가
+root@siege:/# http stock:8080/stocks productName="coffee2" qty=50
 HTTP/1.1 201 
 Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:53:25 GMT
-Location: http://order:8080/orders/7
+Date: Tue, 23 Feb 2021 13:27:22 GMT
+Location: http://stock:8080/stocks/2
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/2"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/2"
+        }
+    },
+    "productName": "coffee2",
+    "qty": 50,
+    "status": "Created"
+}
+
+# order - 주문
+root@siege:/# http order:8080/orders phoneNumber="01011112222" productName="coffee2" qty=3 amt=9000
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:28:26 GMT
+Location: http://order:8080/orders/3
 Transfer-Encoding: chunked
 
 {
     "_links": {
         "order": {
-            "href": "http://order:8080/orders/7"
+            "href": "http://order:8080/orders/3"
         },
         "self": {
-            "href": "http://order:8080/orders/7"
+            "href": "http://order:8080/orders/3"
         }
     },
-    "amt": 5000,
-    "createTime": "2021-02-20T14:53:25.115+0000",
-    "phoneNumber": "01012345679",
-    "productName": "coffee",
+    "amt": 9000,
+    "createTime": "2021-02-23T13:28:26.078+0000",
+    "phoneNumber": "01011112222",
+    "productName": "coffee2",
     "qty": 3,
     "status": "Ordered"
 }
-#음료 서비스 기동
-kubectl apply -f deployment.yml
-deployment.apps/drink created
 
-#음료등록 확인
 
-root@siege-5b99b44c9c-8qtpd:/# http http://drink:8080/drinks/search/findByOrderId?orderId=7
+# 재고 서비스 (stock) 를 잠시 내려놓음
+$ kubectl delete deploy stock
+deployment.apps "stock" deleted
+
+# order - 주문 취소
+root@siege:/# http patch http://order:8080/orders/3 status="OrderCanceled"
 HTTP/1.1 200 
-Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:54:14 GMT
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:29:59 GMT
 Transfer-Encoding: chunked
 
 {
-    "_embedded": {
-        "drinks": [
-            {
-                "_links": {
-                    "drink": {
-                        "href": "http://drink:8080/drinks/4"
-                    },
-                    "self": {
-                        "href": "http://drink:8080/drinks/4"
-                    }
-                },
-                "createTime": "2021-02-20T14:53:25.194+0000",
-                "orderId": 7,
-                "phoneNumber": "01012345679",
-                "productName": "coffee",
-                "qty": 3,
-                "status": "PaymentApproved"
-            }
-        ]
-    },
     "_links": {
+        "order": {
+            "href": "http://order:8080/orders/3"
+        },
         "self": {
-            "href": "http://drink:8080/drinks/search/findByOrderId?orderId=7"
+            "href": "http://order:8080/orders/3"
         }
-    }
+    },
+    "amt": 9000,
+    "createTime": "2021-02-23T13:28:26.078+0000",
+    "phoneNumber": "01011112222",
+    "productName": "coffee2",
+    "qty": 3,
+    "status": "OrderCanceled"
 }
 
 ```
+주문 취소 시 재고서비스(stock)의 상태와 상관없이 처리가능함 확인됨.
 
 
 ## Saga Pattern / 보상 트랜잭션
 
-음료 주문 취소는 바리스타가 음료 접수하기 전에만 취소가 가능하다.
-음료 접수 후에 취소할 경우 보상트랜재션을 통하여 취소를 원복한다.
-음료 주문 취소는 Saga Pattern으로 만들어져 있어 바리스타가 음료를 이미 접수하였을 경우 취소실패를 Event로 publish하고
-Order 서비스에서 취소실패 Event를 Subscribe하여 주문취소를 원복한다.
+음료 주문 취소시 재고의 상태는 주문 전의 재고량으로 원복이 필요하다.
+음료 주문 취소는 Saga Pattern으로 만들어져 있어 음료주문 취소 -> 결제시스템의 결제 취소 Event로 publish하고
+재고서비스(Stock)서비스에서 결제취소 Event를 Subscribe하여 재고량을 원복한다.
 ```
-# 주문
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders/5
-HTTP/1.1 200 
-Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 08:58:19 GMT
+# stock - 음료 추가
+root@siege:/# http stock:8080/stocks productName="coffee2" qty=50
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:27:22 GMT
+Location: http://stock:8080/stocks/2
 Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/2"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/2"
+        }
+    },
+    "productName": "coffee2",
+    "qty": 50,
+    "status": "Created"
+}
+
+
+# order - 주문
+root@siege:/# http order:8080/orders phoneNumber="01011112222" productName="coffee2" qty=3 amt=9000
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:28:26 GMT
+Location: http://order:8080/orders/3
+Transfer-Encoding: chunked
+
 {
     "_links": {
         "order": {
-            "href": "http://order:8080/orders/5"
+            "href": "http://order:8080/orders/3"
         },
         "self": {
-            "href": "http://order:8080/orders/5"
+            "href": "http://order:8080/orders/3"
         }
     },
-    "amt": 100,
-    "createTime": "2021-02-20T08:51:17.441+0000",
-    "phoneNumber": "01033132570",
-    "productName": "coffee",
-    "qty": 2,
+    "amt": 9000,
+    "createTime": "2021-02-23T13:28:26.078+0000",
+    "phoneNumber": "01011112222",
+    "productName": "coffee2",
+    "qty": 3,
     "status": "Ordered"
 }
 
-# 결제 상태 확인 
-root@siege-5b99b44c9c-8qtpd:/# http http://payment:8080/payments/search/findByOrderId?orderId=5
+# stock - 제고 소진 확인
+root@siege:/# http http://stock:8080/stocks/2
 HTTP/1.1 200 
 Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 08:58:54 GMT
+Date: Tue, 23 Feb 2021 13:29:32 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "self": {
+            "href": "http://stock:8080/stocks/2"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/2"
+        }
+    },
+    "productName": "coffee2",
+    "qty": 47,
+    "status": "StockDeducted"
+}
+
+
+# order - 주문취소
+root@siege:/# http patch http://order:8080/orders/3 status="OrderCanceled"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:29:59 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/3"
+        },
+        "self": {
+            "href": "http://order:8080/orders/3"
+        }
+    },
+    "amt": 9000,
+    "createTime": "2021-02-23T13:28:26.078+0000",
+    "phoneNumber": "01011112222",
+    "productName": "coffee2",
+    "qty": 3,
+    "status": "OrderCanceled"
+}
+
+
+#payment - 결제취소 확인
+root@siege:/# http http://payment:8080/payments/search/findByOrderId?orderId=3
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Tue, 23 Feb 2021 13:29:59 GMT
 Transfer-Encoding: chunked
 
 {
@@ -962,187 +1042,52 @@ Transfer-Encoding: chunked
             {
                 "_links": {
                     "payment": {
-                        "href": "http://payment:8080/payments/5"
+                        "href": "http://payment:8080/payments/3"
                     },
                     "self": {
-                        "href": "http://payment:8080/payments/5"
+                        "href": "http://payment:8080/payments/3"
                     }
                 },
-                "amt": 100,
-                "createTime": "2021-02-20T08:51:17.452+0000",
-                "orderId": 5,
-                "phoneNumber": "01033132570",
-                "status": "PaymentApproved"
-            }
-        ]
-    },
-    "_links": {
-        "self": {
-            "href": "http://payment:8080/payments/search/findByOrderId?orderId=5"
-        }
-    }
-}
-
-# 음료 상태 확인
-root@siege-5b99b44c9c-8qtpd:/# http http://drink:8080/drinks/search/findByOrderId?orderId=5                              
-HTTP/1.1 200 
-Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 08:52:14 GMT
-Transfer-Encoding: chunked
-
-{
-    "_embedded": {
-        "drinks": [
-            {
-                "_links": {
-                    "drink": {
-                        "href": "http://drink:8080/drinks/5"
-                    },
-                    "self": {
-                        "href": "http://drink:8080/drinks/5"
-                    }
-                },
-                "createTime": "2021-02-20T08:51:17.515+0000",
-                "orderId": 5,
-                "phoneNumber": "01033132570",
-                "productName": "coffee",
+                "amt": 1000,
+                "createTime": "2021-02-23T13:28:26.078+0000",
+                "orderId": 3,
+                "phoneNumber": "01011112222",
+                "productName": "coffee2",
                 "qty": 2,
-                "status": "PaymentApproved"
+                "status": "PaymentCanceled"
             }
         ]
     },
     "_links": {
         "self": {
-            "href": "http://drink:8080/drinks/search/findByOrderId?orderId=5"
+            "href": "http://payment:8080/payments/search/findByOrderId?orderId=3"
         }
     }
 }
 
-# 음료 접수
-root@siege-5b99b44c9c-8qtpd:/# http patch http://drink:8080/drinks/5 status="Receipted"
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 08:53:29 GMT
-Transfer-Encoding: chunked
-{
-    "_links": {
-        "drink": {
-            "href": "http://drink:8080/drinks/5"
-        },
-        "self": {
-            "href": "http://drink:8080/drinks/5"
-        }
-    },
-    "createTime": "2021-02-20T08:51:17.515+0000",
-    "orderId": 5,
-    "phoneNumber": "01033132570",
-    "productName": "coffee",
-    "qty": 2,
-    "status": "Receipted"
-}
-
-# 주문 취소
-root@siege-5b99b44c9c-8qtpd:/# http patch http://order:8080/orders/5 status="OrderCanceled"
-HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 08:54:29 GMT
-Transfer-Encoding: chunked
-{
-    "_links": {
-        "order": {
-            "href": "http://order:8080/orders/5"
-        },
-        "self": {
-            "href": "http://order:8080/orders/5"
-        }
-    },
-    "amt": 100,
-    "createTime": "2021-02-20T08:51:17.441+0000",
-    "phoneNumber": "01033132570",
-    "productName": "coffee",
-    "qty": 2,
-    "status": "OrderCanceled"
-}
-
-# 주문 조회
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders/5
+# stock - 재고 복구
+root@siege:/# http http://stock:8080/stocks/2
 HTTP/1.1 200 
 Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 09:07:49 GMT
+Date: Tue, 23 Feb 2021 13:30:21 GMT
 Transfer-Encoding: chunked
 
 {
     "_links": {
-        "order": {
-            "href": "http://order:8080/orders/5"
-        },
         "self": {
-            "href": "http://order:8080/orders/5"
+            "href": "http://stock:8080/stocks/2"
+        },
+        "stock": {
+            "href": "http://stock:8080/stocks/2"
         }
     },
-    "amt": 100,
-    "createTime": "2021-02-20T09:07:24.114+0000",
-    "phoneNumber": "01033132570",
-    "productName": "coffee",
-    "qty": 2,
-    "status": "Ordered"
-}
-
-# 결제 상태 확인
-root@siege-5b99b44c9c-8qtpd:/# http http://payment:8080/payments/5
-HTTP/1.1 200 
-Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 09:21:59 GMT
-Transfer-Encoding: chunked
-
-{
-    "_links": {
-        "payment": {
-            "href": "http://payment:8080/payments/5"
-        },
-        "self": {
-            "href": "http://payment:8080/payments/5"
-        }
-    },
-    "amt": 100,
-    "createTime": "2021-02-20T08:51:17.452+0000",
-    "orderId": 5,
-    "phoneNumber": "01033132570",
-    "status": "PaymentApproved"
-}
-
-# 음료 상태 확인
-root@siege-5b99b44c9c-8qtpd:/# http http://drink:8080/drinks/5
-HTTP/1.1 200 
-Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 09:22:47 GMT
-Transfer-Encoding: chunked
-
-{
-    "_links": {
-        "drink": {
-            "href": "http://drink:8080/drinks/5"
-        },
-        "self": {
-            "href": "http://drink:8080/drinks/5"
-        }
-    },
-    "createTime": "2021-02-20T08:51:17.515+0000",
-    "orderId": 5,
-    "phoneNumber": "01033132570",
-    "productName": "coffee",
-    "qty": 2,
-    "status": "Receipted"
+    "productName": "coffee2",
+    "qty": 50,
+    "status": "UsedCancled"
 }
 
 ```
 
-CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카오톡으로 취소 실패된 내용을 전달한다.
-```
-2021-02-20 09:08:42.668  INFO 1 --- [container-0-C-1] cafeteria.external.KakaoServiceImpl      :
-To. 01033132570
-Your Order is already started. You cannot cancel!!
-```
 
 ## CQRS / Meterialized View
 
@@ -1227,7 +1172,7 @@ spec:
             failureThreshold: 5
 ```
 
-## Self Healing
+## Self Healing (Liveness)
 livenessProbe를 설정하여 문제가 있을 경우 스스로 재기동 되도록 한다.
 health check의 httpGet 정보를 임의로 수정하여 문제상황을 가정하였으며 describe를 이용하여 pod의 재기동 상태를 확인하였다.
 
@@ -1237,36 +1182,43 @@ health check의 httpGet 정보를 임의로 수정하여 문제상황을 가정�
 # stock의 deployment
  livenessProbe:
    httpGet:
-     path: /actuator/health
+     path: /actuator/health_liveness
      port: 8080
    initialDelaySeconds: 120
    timeoutSeconds: 2
    periodSeconds: 5
    failureThreshold: 5
 
-$ kubectl describe pods stock-7f57cf5f9f-csp2b
-:
-Events:
-  Type     Reason     Age                   From     Message
-  ----     ------     ----                  ----     -------
-  Normal   Killing    12m (x2 over 6h21m)   kubelet  Container customercenter failed liveness probe, will be restarted
-  Normal   Pulling    12m (x3 over 20h)     kubelet  Pulling image "496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/customercenter:v1"
-  Normal   Created    12m (x3 over 20h)     kubelet  Created container customercenter
-  Normal   Started    12m (x3 over 20h)     kubelet  Started container customercenter
-  Normal   Pulled     12m (x3 over 20h)     kubelet  Successfully pulled image "496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/customercenter:v1"
-  Warning  Unhealthy  11m (x30 over 20h)    kubelet  Readiness probe failed: Get http://10.64.1.29:8080/actuator/health: dial tcp 10.64.1.29:8080: connect: connection refused
-  Warning  Unhealthy  11m (x17 over 6h21m)  kubelet  Readiness probe failed: Get http://10.64.1.29:8080/actuator/health: net/http: request canceled (Client.Timeout exceeded while awaiting headers)
-  Warning  Unhealthy  14s                   kubelet  Readiness probe failed: HTTP probe failed with statuscode: 503
-  Warning  Unhealthy  11s (x13 over 6h21m)  kubelet  Liveness probe failed: Get http://10.64.1.29:8080/actuator/health: net/http: request canceled (Client.Timeout exceeded while awaiting headers)
-  
+root@labs-1564357900:/home/project/personal/cafeteria/stock/kubernetes# kubectl get pod
+NAME                              READY   STATUS    RESTARTS   AGE
+customercenter-5fd496bb57-wjgfl   1/1     Running   0          20h
+drink-55bd6cf5db-7dlbj            1/1     Running   0          15h
+gateway-8d6cb9d7d-sf8b8           1/1     Running   0          20h
+order-8487cc8b7-q8v97             1/1     Running   0          56m
+payment-554f5b6fd7-xbj4w          1/1     Running   0          18h
+siege-5c7c46b788-zjctw            1/1     Running   0          20h
+stock-74db6b6449-4jvld            1/1     Running   2          5m31s
 
+
+$ kubectl describe pod stock-74db6b6449-4jvld
+  
+Events:
+  Type     Reason     Age                  From                                                        Message
+  ----     ------     ----                 ----                                                        -------
+  Normal   Scheduled  6m5s                 default-scheduler                                           Successfully assigned cafeteria/stock-74db6b6449-4jvld to ip-192-168-76-150.ap-northeast-2.compute.internal
+  Normal   Pulled     82s (x3 over 6m4s)   kubelet, ip-192-168-76-150.ap-northeast-2.compute.internal  Container image "496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser21-stock:196e587b451749be10cf7e9ea1b3a99d663e936c" already present on machine
+  Normal   Created    82s (x3 over 6m4s)   kubelet, ip-192-168-76-150.ap-northeast-2.compute.internal  Created container stock
+  Normal   Started    82s (x3 over 6m3s)   kubelet, ip-192-168-76-150.ap-northeast-2.compute.internal  Started container stock
+  Warning  Unhealthy  82s (x10 over 4m2s)  kubelet, ip-192-168-76-150.ap-northeast-2.compute.internal  Liveness probe failed: HTTP probe failed with statuscode: 404
+  Normal   Killing    82s (x2 over 3m42s)  kubelet, ip-192-168-76-150.ap-northeast-2.compute.internal  Container stock failed liveness probe, will be restarted
+  Warning  Unhealthy  62s (x7 over 5m52s)  kubelet, ip-192-168-76-150.ap-northeast-2.compute.internal  Readiness probe failed: Get http://192.168.69.124:8080/actuator/health: dial tcp 192.168.69.124:8080: connect: connection refused
 
 ```
 
 ## CI/CD 설정
 
 
-각 구현체들은 하나의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
+각 구현체들은 하나의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS의 codebuild를 사용하였으며, pipeline build script는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
 
 ![image](https://user-images.githubusercontent.com/76020485/109002030-0481b900-76e9-11eb-82e4-d5709051992a.PNG)
 ![image](https://user-images.githubusercontent.com/76020485/109002045-08154000-76e9-11eb-8af6-9c215c0495b7.PNG)
@@ -1410,11 +1362,11 @@ siege-5c7c46b788-zjctw            1/1     Running   0          16h
 stock-b54dc766f-m582d             1/1     Running   0          10h
 
 kubectl autoscale deploy stock --min=1 --max=10 --cpu-percent=15
-horizontalpodautoscaler.autoscaling/payment autoscaled
+horizontalpodautoscaler.autoscaling/stock autoscaled
 
-$ kubectl get hpa
-NAME      REFERENCE            TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
-payment   Deployment/payment   2%/15%    1         10        1          2m35s
+$kubectl get hpa
+NAME                                        REFERENCE          TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/stock   Deployment/stock   2%/15%    1         10        1          5m 41s
 
 # CB 에서 했던 방식대로 워크로드를 1분 동안 걸어준다.
 
@@ -1423,58 +1375,18 @@ root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/
 ** Preparing 100 concurrent users for battle.
 The server is now under siege...
 
-$ kubectl get pods
-NAME                              READY     STATUS    RESTARTS   AGE
-customercenter-59f4d6d897-lnpsh   1/1       Running   0          97m
-drink-64bc64d49c-sdwlb            1/1       Running   0          112m
-gateway-6dcdf4cb9-pghzz           1/1       Running   0          74m
-order-7ff9b5458-4wn28             1/1       Running   2          21m
-payment-6f75856f77-b6ctw          1/1       Running   0          118s
-payment-6f75856f77-f2l5m          1/1       Running   0          102s
-payment-6f75856f77-gl24n          1/1       Running   0          41m
-payment-6f75856f77-htkn5          1/1       Running   0          118s
-payment-6f75856f77-rplpb          1/1       Running   0          118s
-siege-5b99b44c9c-ldf2l            1/1       Running   0          96m
-```
-
-- HPA를 확인한다.
-```
-$ kubectl get hpa 
-NAME      REFERENCE            TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
-payment   Deployment/payment   72%/15%   1         10        5          12m
-```
-
-- 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
-```
-kubectl get deploy payment -w
-```
-- 어느정도 시간이 흐른 후 (약 30초) 스케일 아웃이 벌어지는 것을 확인할 수 있다:
-```
-NAME      DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-payment   1         1         1         1         1h
-payment   4         1         1         1         1h
-payment   4         1         1         1         1h
-payment   4         1         1         1         1h
-payment   4         4         4         1         1h
-payment   5         4         4         1         1h
-payment   5         4         4         1         1h
-payment   5         4         4         1         1h
-payment   5         5         5         1         1h
-
-# siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
-
-Transactions:		         900 hits
-Availability:		       76.08 %
-Elapsed time:		       59.33 secs
-Data transferred:	        0.34 MB
-Response time:		        6.14 secs
-Transaction rate:	       15.17 trans/sec
-Throughput:		        0.01 MB/sec
-Concurrency:		       93.08
-Successful transactions:         900
-Failed transactions:	         283
-Longest transaction:	       14.41
-Shortest transaction:	        0.04
+root@labs-1564357900:/home/project/personal/cafeteria/# kubectl get all
+NAME                                  READY   STATUS              RESTARTS   AGE
+pod/customercenter-5fd496bb57-wjgfl   1/1     Running             0          19h
+pod/drink-55bd6cf5db-7dlbj            1/1     Running             0          14h
+pod/gateway-8d6cb9d7d-sf8b8           1/1     Running             0          19h
+pod/order-5fd84bd97f-lsq7b            1/1     Running             0          4m33s
+pod/payment-554f5b6fd7-xbj4w          1/1     Running             0          16h
+pod/siege-5c7c46b788-zjctw            1/1     Running             0          19h
+pod/stock-8679987b6f-5r9zq            0/1     Running             0          11s
+pod/stock-8679987b6f-jxtfb            1/1     Running             0          4m22s
+pod/stock-8679987b6f-n66zs            0/1     ContainerCreating   0          11s
+pod/stock-8679987b6f-tn24l            0/1     ContainerCreating   0          11s
 
 ```
 
@@ -1501,111 +1413,90 @@ HTTP/1.1 201     0.41 secs:     321 bytes ==> POST http://order:8080/orders
 
 ```
 
-- 새버전으로의 배포 시작
+- readiness 적용하지 않았을 때 새버전으로의 배포 시작
 
 ```
-order version
+root@siege-5c7c46b788-zjctw:/# siege -v -c100 -t60s --content-type "application/json" 'http://stock:8080/stocks POST {"productName":"coffee1", "qty":100}'
+...
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+...
+HTTP/1.1 201     1.33 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.62 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.22 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.24 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.28 secs:     226 bytes ==> POST http://stock:8080/stocks
+siege aborted due to excessive socket failure; you
+can change the failure threshold in $HOME/.siegerc
 
-v1 : default version 
-v3 : circuit breaker version 
-v4 : default version
-v6 : graceful shutdown version
+Transactions:                    467 hits
+Availability:                  30.74 %
+Elapsed time:                   6.93 secs
+Data transferred:               0.10 MB
+Response time:                  1.38 secs
+Transaction rate:              67.39 trans/sec
+Throughput:                     0.01 MB/sec
+Concurrency:                   92.74
+Successful transactions:         467
+Failed transactions:            1052
+Longest transaction:            4.50
+Shortest transaction:           0.05
 ```
 - 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행할 수 있기 때문에 이를 막기위해 Readiness Probe 를 설정하여 이미지를 배포
 ```
-$ kubectl set image deployment/order order=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:v4
-deployment.apps/order image updated
+# readiness가 적용된 deployment
+  kubectl apply -f kubernetes/deployment_readiness.yaml
+  
+  # deployment_readiness 의 readiness probe 의 설정:
+          readinessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8080
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 10
+
+# 이미지 배포
+$kubectl set image deploy/stock stock=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser21-stock:faa8c500335853db0552905065499cb12059b42e
+deployment.apps/stock image updated
 ```
 
-```
-# deployment.yaml 의 readiness probe 의 설정:
 
-kubectl apply -f kubernetes/deployment.yaml
-```
 - 재배포 한 후 Availability 확인:
 ```
-root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
-** SIEGE 4.0.4
-** Preparing 100 concurrent users for battle.
-The server is now under siege...
+root@siege-5c7c46b788-zjctw:/# siege -v -c100 -t60s --content-type "application/json" 'http://stock:8080/stocks POST {"productName":"coffee1", "qty":100}'
+...
+HTTP/1.1 201     0.28 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.31 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.29 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.54 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.29 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.31 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.32 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.32 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.44 secs:     230 bytes ==> POST http://stock:8080/stocks
+
 Lifting the server siege...
-Transactions:		        4300 hits
-Availability:		       99.79 %
-Elapsed time:		       59.08 secs
-Data transferred:	        1.33 MB
-Response time:		        1.05 secs
-Transaction rate:	       72.78 trans/sec
-Throughput:		        0.02 MB/sec
-Concurrency:		       76.67
-Successful transactions:        4300
-Failed transactions:	           9
-Longest transaction:	        4.07
-Shortest transaction:	        0.03
-```
-
-배포기간중 Availability 가 99.79% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 기존 서비스의 처리 중 종료했기 때문. 이를 막기위해 Graceful Shutdown을 적용
-```
-# Graceful Shutdown 적용 
-public class TomcatGracefulShutdown implements TomcatConnectorCustomizer, ApplicationListener<ContextClosedEvent> {
-
-	private Integer waiting = 30; 
-	
-    private volatile Connector connector;
-
-    @Override
-    public void customize(Connector connector) {
-        this.connector = connector;
-    }
-
-    @Override
-    public void onApplicationEvent(ContextClosedEvent event) {
-        this.connector.pause();
-        Executor executor = this.connector.getProtocolHandler().getExecutor();
-        if (executor instanceof ThreadPoolExecutor) {
-            try {
-                ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) executor;
-                threadPoolExecutor.shutdown();
-                if (!threadPoolExecutor.awaitTermination(waiting, TimeUnit.SECONDS)) {
-                    log.error("Tomcat thread pool did not shut down gracefully within {} seconds. Proceeding with forceful shutdown", waiting);
-
-                    threadPoolExecutor.shutdownNow();
-
-                    if (!threadPoolExecutor.awaitTermination(waiting, TimeUnit.SECONDS)) {
-                        log.error("Tomcat thread pool did not terminate");
-                    }
-                }
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-}
-```
-
-- 동일한 시나리오로 재배포 한 후 Availability 확인:
-```
-root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
-** SIEGE 4.0.4
-** Preparing 100 concurrent users for battle.
-The server is now under siege...
-Lifting the server siege...
-Transactions:		        5261 hits
-Availability:		      100.00 %
-Elapsed time:		       59.28 secs
-Data transferred:	        1.62 MB
-Response time:		        1.09 secs
-Transaction rate:	       88.75 trans/sec
-Throughput:		        0.03 MB/sec
-Concurrency:		       97.08
-Successful transactions:        5261
-Failed transactions:	           0
-Longest transaction:	        7.52
-Shortest transaction:	        0.01
+Transactions:                  24543 hits
+Availability:                 100.00 %
+Elapsed time:                 119.10 secs
+Data transferred:               5.36 MB
+Response time:                  0.48 secs
+Transaction rate:             206.07 trans/sec
+Throughput:                     0.05 MB/sec
+Concurrency:                   99.72
+Successful transactions:       24543
+Failed transactions:               0
+Longest transaction:            4.95
+Shortest transaction:           0.00
 
 ```
 
-배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+배포기간 동안 Readiness Probe가 적용됨에 따라 Availability 높아졌음을 확인됨.
 
 ## Persistence Volum Claim
 서비스의 log를 persistence volum을 사용하여 재기동후에도 남아 있을 수 있도록 하였다.

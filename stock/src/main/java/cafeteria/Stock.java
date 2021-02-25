@@ -35,12 +35,12 @@ public class Stock {
 	        StockDeducted stockDeducted = new StockDeducted();
 	        BeanUtils.copyProperties(this, stockDeducted);
 	        stockDeducted.publishAfterCommit();
-/*	        try {
+	        try {
 	            Thread.currentThread().sleep((long) (400 + Math.random() * 220));
 	        }catch (InterruptedException e) {
 	        	e.printStackTrace();
 	        }
-*/
+
 	        break;
     	case "StockAdded" : 
     		StockAdded stockAdded = new StockAdded();

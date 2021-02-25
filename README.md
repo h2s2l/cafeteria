@@ -1485,21 +1485,23 @@ hystrix:
 
 ```
 
-- 피호출 서비스(재고:stock) 의 사용 호출시의 부하 처리 - 600 밀리에서 증감 220 밀리 정도 왔다갔다 하게
+- 피호출 서비스(재고:stock) 의 사용 호출시의 부하 처리 - 400ms + 220*random ms로 딜레이
 ```
-# (payment) Payment.java (Entity)
-
-    @PrePersist
-    public void onPrePersist(){  //결제이력을 저장한 후 적당한 시간 끌기
-
-        :
-        
-        try {
-            Thread.currentThread().sleep((long) (400 + Math.random() * 220));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
+  # Stock.java 
+  @PostUpdate
+    public void onPostUpdate(){    	
+    	
+   	switch(status) {
+   		case "StockDeducted" : 
+	        StockDeducted stockDeducted = new StockDeducted();
+	        BeanUtils.copyProperties(this, stockDeducted);
+	        stockDeducted.publishAfterCommit();
+	        try {
+	            Thread.currentThread().sleep((long) (400 + Math.random() * 220));
+	        }catch (InterruptedException e) {
+	        	e.printStackTrace();
+	        }
+	        break;
 ```
 
 * 부하테스터 siege 툴을 통한 서킷 브레이커 동작 확인:
@@ -1511,93 +1513,61 @@ root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/
 ** SIEGE 4.0.4
 ** Preparing 100 concurrent users for battle.
 The server is now under siege...
-HTTP/1.1 201     0.57 secs:     317 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.57 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.63 secs:     317 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.64 secs:     317 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.63 secs:     317 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.69 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.73 secs:     317 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.74 secs:     317 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.75 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     0.79 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     0.22 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.11 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.18 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.21 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.20 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.24 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.26 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.28 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.37 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.37 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.40 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.65 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.71 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.76 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.80 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.78 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.88 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     1.89 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     1.89 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.00 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     2.01 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.12 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.16 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.21 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.31 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.33 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     2.44 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.48 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     2.48 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.51 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.52 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.57 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     2.67 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     2.66 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.80 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 500     2.83 secs:     248 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.84 secs:     319 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     2.89 secs:     319 bytes ==> POST http://order:8080/orders
-...
-Lifting the server siege...siege aborted due to excessive socket failure; you
+
+....
+
+
+HTTP/1.1 500     2.79 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.93 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.46 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.39 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.27 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.60 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.82 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.93 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     0.76 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.43 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.39 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.30 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.83 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.30 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.30 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.80 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.81 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     1.66 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     2.05 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     2.30 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     2.57 secs:     248 bytes ==> POST http://order:8080/orders
+siege aborted due to excessive socket failure; you
 can change the failure threshold in $HOME/.siegerc
 
-Transactions:		         701 hits
-Availability:		       39.58 %
-Elapsed time:		       59.21 secs
-Data transferred:	        0.47 MB
-Response time:		        8.18 secs
-Transaction rate:	       11.84 trans/sec
-Throughput:		        0.01 MB/sec
-Concurrency:		       96.90
-Successful transactions:         701
-Failed transactions:	        1070
-Longest transaction:	        9.81
-Shortest transaction:	        0.05
-```
+Transactions:                    640 hits
+Availability:                  36.30 %
+Elapsed time:                  45.01 secs
+Data transferred:               0.46 MB
+Response time:                  6.99 secs
+Transaction rate:              14.22 trans/sec
+Throughput:                     0.01 MB/sec
+Concurrency:                   99.43
+Successful transactions:         640
+Failed transactions:            1123
+Longest transaction:           11.25
+Shortest transaction:           0.09
 
 - order 서비스의 로그를 확인하여 Circuit이 OPEN된 것을 확인한다.
-$ kubectl logs -f order-7ff9b5458-4wn28 | grep OPEN
 ```
+ERROR 1 --- [o-8080-exec-172] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.transaction.TransactionSystemException: Could not commit JPA transaction; nested exception is javax.persistence.RollbackException: Error while committing the transaction] with root cause
+
 java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
-java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+        at com.netflix.hystrix.AbstractCommand.handleShortCircuitViaFallback(AbstractCommand.java:979) ~[hystrix-core-1.5.18.jar!/:1.5.18]
+        at com.netflix.hystrix.AbstractCommand.applyHystrixSemantics(AbstractCommand.java:557) ~[hystrix-core-1.5.18.jar!/:1.5.18]
+        at com.netflix.hystrix.AbstractCommand.access$200(AbstractCommand.java:60) ~[hystrix-core-1.5.18.jar!/:1.5.18]
+        at com.netflix.hystrix.AbstractCommand$4.call(AbstractCommand.java:419) ~[hystrix-core-1.5.18.jar!/:1.5.18]
+        at com.netflix.hystrix.AbstractCommand$4.call(AbstractCommand.java:413) ~[hystrix-core-1.5.18.jar!/:1.5.18]
+        at rx.internal.operators.OnSubscribeDefer.call(OnSubscribeDefer.java:46) ~[rxjava-1.3.8.jar!/:1.3.8]
+        at rx.internal.operators.OnSubscribeDefer.call(OnSubscribeDefer.java:35) ~[rxjava-1.3.8.jar!/:1.3.8]
+        at rx.Observable.unsafeSubscribe(Observable.java:10327) ~[rxjava-1.3.8.jar!/:1.3.8]
+
 ```
 
 - 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 40% 가 성공하였고, 60%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.

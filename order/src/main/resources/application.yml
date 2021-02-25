@@ -78,7 +78,7 @@ feign:
     stock:
       url: http://stock:8080
   hystrix:
-    enabled: true 
+    enabled: false 
 
 hystrix:
   command:

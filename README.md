@@ -1136,7 +1136,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: stock
-  namespace: stock
+  namespace: cafeteria
   labels:
     app: stock
 spec:
@@ -1151,7 +1151,7 @@ spec:
     spec:
       containers:
         - name: stock
-          image: h2s2l/stock:v1
+          image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser21-stock:faa8c500335853db0552905065499cb12059b42e
           ports:
             - containerPort: 8080
           readinessProbe:
@@ -1214,6 +1214,117 @@ Events:
   Warning  Unhealthy  62s (x7 over 5m52s)  kubelet, ip-192-168-76-150.ap-northeast-2.compute.internal  Readiness probe failed: Get http://192.168.69.124:8080/actuator/health: dial tcp 192.168.69.124:8080: connect: connection refused
 
 ```
+
+
+## 무정지 재배포 (Readiness)
+
+* 먼저 무정지 재배포가 100% 되는 것인지 확인하기 위해서 Autoscaler 이나 CB 설정을 제거함
+
+- seige 로 배포작업 직전에 워크로드를 모니터링 함.
+```
+# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
+** Preparing 100 concurrent users for battle.
+The server is now under siege...
+HTTP/1.1 201     0.20 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.34 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.39 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.38 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.41 secs:     321 bytes ==> POST http://order:8080/orders
+:
+
+```
+
+- readiness 적용하지 않았을 때 새버전으로의 배포 시작
+
+```
+root@siege-5c7c46b788-zjctw:/# siege -v -c100 -t60s --content-type "application/json" 'http://stock:8080/stocks POST {"productName":"coffee1", "qty":100}'
+...
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+[error] socket: unable to connect sock.c:249: Connection refused
+...
+HTTP/1.1 201     1.33 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.62 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.22 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.24 secs:     226 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     1.28 secs:     226 bytes ==> POST http://stock:8080/stocks
+siege aborted due to excessive socket failure; you
+can change the failure threshold in $HOME/.siegerc
+
+Transactions:                    467 hits
+Availability:                  30.74 %
+Elapsed time:                   6.93 secs
+Data transferred:               0.10 MB
+Response time:                  1.38 secs
+Transaction rate:              67.39 trans/sec
+Throughput:                     0.01 MB/sec
+Concurrency:                   92.74
+Successful transactions:         467
+Failed transactions:            1052
+Longest transaction:            4.50
+Shortest transaction:           0.05
+```
+- 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행할 수 있기 때문에 이를 막기위해 Readiness Probe 를 설정하여 이미지를 배포
+```
+# readiness가 적용된 deployment
+  kubectl apply -f kubernetes/deployment_readiness.yaml
+  
+  # deployment_readiness 의 readiness probe 의 설정:
+          readinessProbe:
+            httpGet:
+              path: '/actuator/health'
+              port: 8080
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 10
+
+# 이미지 배포
+$kubectl set image deploy/stock stock=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser21-stock:faa8c500335853db0552905065499cb12059b42e
+deployment.apps/stock image updated
+```
+
+
+- 재배포 한 후 Availability 확인:
+```
+root@siege-5c7c46b788-zjctw:/# siege -v -c100 -t60s --content-type "application/json" 'http://stock:8080/stocks POST {"productName":"coffee1", "qty":100}'
+...
+HTTP/1.1 201     0.28 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.31 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.29 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.54 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.29 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.31 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.32 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.32 secs:     230 bytes ==> POST http://stock:8080/stocks
+HTTP/1.1 201     0.44 secs:     230 bytes ==> POST http://stock:8080/stocks
+
+Lifting the server siege...
+Transactions:                  24543 hits
+Availability:                 100.00 %
+Elapsed time:                 119.10 secs
+Data transferred:               5.36 MB
+Response time:                  0.48 secs
+Transaction rate:             206.07 trans/sec
+Throughput:                     0.05 MB/sec
+Concurrency:                   99.72
+Successful transactions:       24543
+Failed transactions:               0
+Longest transaction:            4.95
+Shortest transaction:           0.00
+
+```
+
+배포기간 동안 Readiness Probe가 적용됨에 따라 Availability 높아졌음을 확인됨.
+
+
+
 
 ## CI/CD 설정
 
@@ -1345,7 +1456,9 @@ java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
 
 - 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 36%의 Availability는 사용성에 있어 좋지 않기 때문에 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
 
-### 오토스케일 아웃
+
+
+### 오토스케일 아웃 (HPA)
 앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
 
 
@@ -1391,112 +1504,6 @@ pod/stock-8679987b6f-tn24l            0/1     ContainerCreating   0          11s
 ```
 
 
-## 무정지 재배포
-
-* 먼저 무정지 재배포가 100% 되는 것인지 확인하기 위해서 Autoscaler 이나 CB 설정을 제거함
-
-- seige 로 배포작업 직전에 워크로드를 모니터링 함.
-```
-# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
-** SIEGE 4.0.4
-** Preparing 100 concurrent users for battle.
-The server is now under siege...
-HTTP/1.1 201     0.20 secs:     321 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.34 secs:     321 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.39 secs:     321 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.38 secs:     321 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
-HTTP/1.1 201     0.41 secs:     321 bytes ==> POST http://order:8080/orders
-:
-
-```
-
-- readiness 적용하지 않았을 때 새버전으로의 배포 시작
-
-```
-root@siege-5c7c46b788-zjctw:/# siege -v -c100 -t60s --content-type "application/json" 'http://stock:8080/stocks POST {"productName":"coffee1", "qty":100}'
-...
-[error] socket: unable to connect sock.c:249: Connection refused
-[error] socket: unable to connect sock.c:249: Connection refused
-[error] socket: unable to connect sock.c:249: Connection refused
-[error] socket: unable to connect sock.c:249: Connection refused
-[error] socket: unable to connect sock.c:249: Connection refused
-...
-HTTP/1.1 201     1.33 secs:     226 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     1.62 secs:     226 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     1.22 secs:     226 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     1.24 secs:     226 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     1.28 secs:     226 bytes ==> POST http://stock:8080/stocks
-siege aborted due to excessive socket failure; you
-can change the failure threshold in $HOME/.siegerc
-
-Transactions:                    467 hits
-Availability:                  30.74 %
-Elapsed time:                   6.93 secs
-Data transferred:               0.10 MB
-Response time:                  1.38 secs
-Transaction rate:              67.39 trans/sec
-Throughput:                     0.01 MB/sec
-Concurrency:                   92.74
-Successful transactions:         467
-Failed transactions:            1052
-Longest transaction:            4.50
-Shortest transaction:           0.05
-```
-- 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행할 수 있기 때문에 이를 막기위해 Readiness Probe 를 설정하여 이미지를 배포
-```
-# readiness가 적용된 deployment
-  kubectl apply -f kubernetes/deployment_readiness.yaml
-  
-  # deployment_readiness 의 readiness probe 의 설정:
-          readinessProbe:
-            httpGet:
-              path: '/actuator/health'
-              port: 8080
-            initialDelaySeconds: 10
-            timeoutSeconds: 2
-            periodSeconds: 5
-            failureThreshold: 10
-
-# 이미지 배포
-$kubectl set image deploy/stock stock=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser21-stock:faa8c500335853db0552905065499cb12059b42e
-deployment.apps/stock image updated
-```
-
-
-- 재배포 한 후 Availability 확인:
-```
-root@siege-5c7c46b788-zjctw:/# siege -v -c100 -t60s --content-type "application/json" 'http://stock:8080/stocks POST {"productName":"coffee1", "qty":100}'
-...
-HTTP/1.1 201     0.28 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.31 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.29 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.54 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.29 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.31 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.32 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.32 secs:     230 bytes ==> POST http://stock:8080/stocks
-HTTP/1.1 201     0.44 secs:     230 bytes ==> POST http://stock:8080/stocks
-
-Lifting the server siege...
-Transactions:                  24543 hits
-Availability:                 100.00 %
-Elapsed time:                 119.10 secs
-Data transferred:               5.36 MB
-Response time:                  0.48 secs
-Transaction rate:             206.07 trans/sec
-Throughput:                     0.05 MB/sec
-Concurrency:                   99.72
-Successful transactions:       24543
-Failed transactions:               0
-Longest transaction:            4.95
-Shortest transaction:           0.00
-
-```
-
-배포기간 동안 Readiness Probe가 적용됨에 따라 Availability 높아졌음을 확인됨.
 
 ## Persistence Volum Claim
 서비스의 log를 persistence volum을 사용하여 재기동후에도 남아 있을 수 있도록 하였다.
